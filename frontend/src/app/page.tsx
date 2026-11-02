@@ -8,30 +8,39 @@ const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
 
 async function getFeaturedProperties() {
   try {
-    const res = await fetch(`${API}/properties/?limit=12`, {
-      next: { revalidate: 60 },
-    });
+    const res = await fetch(`${API}/properties/?limit=12`, { next: { revalidate: 60 } });
     if (!res.ok) return [];
     const data = await res.json();
-    // backend returns list directly — not { items: [] }
     return Array.isArray(data) ? data : (data.items ?? []);
-  } catch {
-    return [];
-  }
+  } catch { return []; }
 }
 
 async function getRecentProperties() {
   try {
-    const res = await fetch(`${API}/properties/?limit=6`, {
-      next: { revalidate: 60 },
-    });
+    const res = await fetch(`${API}/properties/?limit=6`, { next: { revalidate: 60 } });
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data) ? data : (data.items ?? []);
-  } catch {
-    return [];
-  }
+  } catch { return []; }
 }
+
+const CATEGORIES = [
+  { label: "Apartamentos", emoji: "🏠", q: "tipo_imovel=apartamento" },
+  { label: "Casas",        emoji: "🏡", q: "tipo_imovel=casa" },
+  { label: "Terrenos",     emoji: "🏗️",  q: "tipo_imovel=terreno" },
+  { label: "Lojas",        emoji: "🏪", q: "tipo_imovel=loja" },
+  { label: "Escritórios",  emoji: "🏢", q: "tipo_imovel=escritorio" },
+  { label: "Armazéns",     emoji: "🏭", q: "tipo_imovel=armazem" },
+];
+
+const TOP_PROVINCES = [
+  { name: "Luanda",     emoji: "🏙️" },
+  { name: "Benguela",   emoji: "🌊" },
+  { name: "Huíla",      emoji: "🌿" },
+  { name: "Huambo",     emoji: "⛰️" },
+  { name: "Cabinda",    emoji: "🛢️" },
+  { name: "Malanje",    emoji: "🌾" },
+];
 
 export default async function HomePage() {
   const [featured, recent] = await Promise.all([
@@ -42,7 +51,8 @@ export default async function HomePage() {
   return (
     <>
       {/* ── Hero ── */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-primary-950 via-[#0f1d44] to-primary-900 dark:from-dark-bg dark:via-dark-surface dark:to-dark-bg px-4 pb-28 pt-20 sm:px-6">
+      <section className="relative overflow-hidden bg-gradient-to-br from-primary-950 via-[#0f1d44] to-primary-900 dark:from-dark-bg dark:via-dark-surface dark:to-dark-bg px-4 pb-24 pt-20 sm:px-6">
+        {/* Ambient glows */}
         <div className="pointer-events-none absolute -right-48 -top-48 h-[600px] w-[600px] rounded-full bg-primary-700/20 blur-[140px]" />
         <div className="pointer-events-none absolute left-1/4 top-1/2 h-96 w-96 rounded-full bg-terra-500/10 blur-[100px]" />
         <div className="pointer-events-none absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-primary-800/30 blur-[80px]" />
@@ -61,20 +71,19 @@ export default async function HomePage() {
           <p className="mb-10 mx-auto max-w-xl text-base text-primary-300/85 sm:text-lg">
             Milhares de imóveis para arrendar e comprar nas 21 províncias de Angola.
           </p>
+
+          {/* SearchBar */}
           <div className="mx-auto max-w-3xl">
             <SearchBar />
           </div>
-          <div className="mt-8 flex flex-wrap justify-center gap-3">
-            {[
-              { label: "Apartamentos", emoji: "🏠", q: "tipo_imovel=apartamento" },
-              { label: "Casas", emoji: "🏡", q: "tipo_imovel=casa" },
-              { label: "Terrenos", emoji: "🏗️", q: "tipo_imovel=terreno" },
-              { label: "Lojas", emoji: "🏪", q: "tipo_imovel=loja" },
-            ].map((c) => (
+
+          {/* Category quick-links */}
+          <div className="mt-7 flex flex-wrap justify-center gap-2">
+            {CATEGORIES.map((c) => (
               <Link
                 key={c.label}
                 href={`/imoveis?${c.q}`}
-                className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/8 px-4 py-2 text-sm font-medium text-primary-200 backdrop-blur-sm hover:bg-white/15 hover:text-white transition-all"
+                className="flex items-center gap-1.5 rounded-full border border-white/12 bg-white/8 px-4 py-2 text-xs font-medium text-primary-200 backdrop-blur-sm transition-all hover:bg-white/16 hover:text-white hover:border-white/25 hover:scale-105"
               >
                 <span>{c.emoji}</span>
                 {c.label}
@@ -85,27 +94,25 @@ export default async function HomePage() {
       </section>
 
       {/* ── Stats band ── */}
-      <section className="border-b border-surface-border bg-surface-muted dark:border-dark-border dark:bg-dark-surface">
-        <div className="mx-auto max-w-5xl px-4 py-5 sm:px-6">
-          <div className="flex flex-wrap items-center justify-center gap-8 text-center">
+      <section className="border-b border-surface-border bg-white dark:border-dark-border dark:bg-dark-surface">
+        <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 text-center">
             {[
-              { value: "2 400+", label: "Imóveis listados" },
-              { value: "21", label: "Províncias cobertas" },
-              { value: "180+", label: "Agentes activos" },
-              { value: "98%", label: "Anúncios verificados" },
+              { value: "2 400+", label: "Imóveis listados",    color: "text-primary-700 dark:text-terra-400" },
+              { value: "21",     label: "Províncias cobertas", color: "text-primary-700 dark:text-terra-400" },
+              { value: "180+",   label: "Agentes activos",     color: "text-primary-700 dark:text-terra-400" },
+              { value: "98%",    label: "Satisfação",          color: "text-primary-700 dark:text-terra-400" },
             ].map((s) => (
-              <div key={s.label}>
-                <p className="font-display text-2xl font-extrabold text-primary-700 dark:text-terra-400">
-                  {s.value}
-                </p>
-                <p className="text-xs text-primary-500 dark:text-slate-400">{s.label}</p>
+              <div key={s.label} className="rounded-2xl bg-surface-muted dark:bg-dark-elevated px-4 py-4">
+                <p className={`font-display text-2xl font-extrabold ${s.color}`}>{s.value}</p>
+                <p className="mt-0.5 text-xs text-primary-500 dark:text-slate-400">{s.label}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── Carrossel ── */}
+      {/* ── Carrossel destaques ── */}
       {featured.length > 0 && (
         <section className="py-14 px-4 sm:px-6 overflow-hidden bg-white dark:bg-dark-bg">
           <div className="mx-auto max-w-7xl mb-8 flex items-center justify-between">
@@ -114,7 +121,7 @@ export default async function HomePage() {
                 Anúncios em destaque
               </h2>
               <p className="mt-1 text-sm text-primary-500 dark:text-slate-400">
-                Passa o rato para pausar
+                Seleccionados pela nossa equipa
               </p>
             </div>
             <Link
@@ -129,15 +136,49 @@ export default async function HomePage() {
         </section>
       )}
 
+      {/* ── Províncias populares ── */}
+      <section className="border-y border-surface-border bg-surface-muted py-12 px-4 dark:border-dark-border dark:bg-dark-surface sm:px-6">
+        <div className="mx-auto max-w-5xl">
+          <div className="mb-7 flex items-center justify-between">
+            <h2 className="font-display text-xl font-bold text-primary-900 dark:text-white">
+              Pesquisar por província
+            </h2>
+            <Link
+              href="/imoveis"
+              className="text-xs font-semibold text-terra-600 dark:text-terra-400 hover:underline"
+            >
+              Ver todas
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            {TOP_PROVINCES.map((p) => (
+              <Link
+                key={p.name}
+                href={`/imoveis?provincia=${encodeURIComponent(p.name)}`}
+                className="group flex flex-col items-center gap-2 rounded-2xl border border-surface-border dark:border-dark-border bg-white dark:bg-dark-card p-4 text-center transition-all hover:border-primary-300 dark:hover:border-primary-700 hover:shadow-md hover:-translate-y-0.5"
+              >
+                <span className="text-2xl">{p.emoji}</span>
+                <span className="text-xs font-semibold text-primary-800 dark:text-slate-200 group-hover:text-primary-600 dark:group-hover:text-terra-400 transition-colors">
+                  {p.name}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── Features ── */}
-      <section className="border-y border-surface-border bg-surface-muted py-16 px-4 dark:border-dark-border dark:bg-dark-surface sm:px-6">
+      <section className="py-16 px-4 bg-white dark:bg-dark-bg sm:px-6">
         <div className="mx-auto max-w-5xl">
           <div className="mb-10 text-center">
             <h2 className="font-display text-2xl font-bold text-primary-900 dark:text-white">
               Porque escolher o Kubico?
             </h2>
+            <p className="mt-2 text-sm text-primary-500 dark:text-slate-400">
+              A plataforma de imóveis mais completa de Angola
+            </p>
           </div>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {[
               {
                 icon: ShieldCheck,
@@ -164,7 +205,7 @@ export default async function HomePage() {
                 color: "text-violet-600 bg-violet-100 dark:bg-violet-900/30 dark:text-violet-300",
               },
             ].map((f) => (
-              <div key={f.title} className="card p-6 dark:bg-dark-card dark:border-dark-border">
+              <div key={f.title} className="card p-6 dark:bg-dark-card dark:border-dark-border hover:shadow-md transition-shadow">
                 <div className={`mb-4 inline-flex h-11 w-11 items-center justify-center rounded-2xl ${f.color}`}>
                   <f.icon className="h-5 w-5" />
                 </div>
@@ -180,7 +221,7 @@ export default async function HomePage() {
 
       {/* ── Recentes ── */}
       {recent.length > 0 && (
-        <section className="py-14 px-4 dark:bg-dark-bg sm:px-6">
+        <section className="py-14 px-4 bg-surface-muted dark:bg-dark-surface border-t border-surface-border dark:border-dark-border sm:px-6">
           <div className="mx-auto max-w-7xl">
             <div className="mb-8 flex items-center justify-between">
               <div>
@@ -208,7 +249,7 @@ export default async function HomePage() {
       )}
 
       {/* ── CTA agente ── */}
-      <section className="px-4 pb-16 sm:px-6 dark:bg-dark-bg">
+      <section className="px-4 py-16 sm:px-6 dark:bg-dark-bg bg-white">
         <div className="mx-auto max-w-5xl overflow-hidden rounded-3xl bg-gradient-to-br from-primary-950 to-primary-900 dark:from-dark-surface dark:to-dark-elevated px-8 py-14 text-center relative">
           <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-terra-500/15 blur-[80px]" />
           <div className="pointer-events-none absolute -left-20 bottom-0 h-48 w-48 rounded-full bg-primary-600/20 blur-[60px]" />
