@@ -55,8 +55,10 @@ export default function ImoveisContent() {
         Object.entries(params).filter(([, v]) => v !== null && v !== "" && v !== undefined)
       );
       const { data } = await propertyApi.search(clean);
-      setItems(data.items ?? []);
-      setTotal(data.total ?? 0);
+      // backend returns list directly (not paginated {items,total})
+      const list = Array.isArray(data) ? data : (data.items ?? []);
+      setItems(list);
+      setTotal(Array.isArray(data) ? data.length : (data.total ?? 0));
     } catch {
       setItems([]);
     } finally {
@@ -98,7 +100,7 @@ export default function ImoveisContent() {
   ].filter(Boolean) as { key: string; label: string }[];
 
   return (
-    <div className="min-h-screen bg-[#f4f6fa]">
+    <div className="min-h-screen bg-[#f4f6fa] dark:bg-dark-bg">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
 
         {/* Search bar compacta */}
@@ -137,8 +139,8 @@ export default function ImoveisContent() {
               showFilters ? "block" : "hidden"
             } w-64 md:block`}
           >
-            <div className="sticky top-24 overflow-hidden rounded-2xl bg-white shadow-card">
-              <div className="border-b border-surface-border px-5 py-4">
+            <div className="sticky top-24 overflow-hidden rounded-2xl bg-white shadow-card dark:bg-dark-card dark:border dark:border-dark-border">
+              <div className="border-b border-surface-border dark:border-dark-border px-5 py-4">
                 <h2 className="font-display text-sm font-bold text-primary-900">Filtros</h2>
               </div>
 
@@ -303,7 +305,7 @@ export default function ImoveisContent() {
                 ))}
               </div>
             ) : items.length === 0 ? (
-              <div className="flex flex-col items-center justify-center rounded-2xl bg-white py-20 text-center shadow-card">
+              <div className="flex flex-col items-center justify-center rounded-2xl bg-white dark:bg-dark-card py-20 text-center shadow-card">
                 <div className="mb-4 text-5xl">🏠</div>
                 <h3 className="font-display text-lg font-bold text-primary-900">
                   Nenhum imóvel encontrado
