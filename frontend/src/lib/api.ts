@@ -133,10 +133,24 @@ const UPLOAD_CONFIG = {
 
 export const uploadApi = {
   image: (file: File) => {
-    const allowed = ["image/jpeg", "image/png", "image/webp"];
-    if (!allowed.includes(file.type)) {
+    // MIME types accepted — heic/heif often report as empty string on some browsers,
+    // so we also gate on extension as a fallback.
+    const ALLOWED_MIME = new Set([
+      "image/jpeg", "image/jpg", "image/png", "image/webp",
+      "image/gif", "image/bmp", "image/tiff",
+      "image/heic", "image/heif",
+      "image/avif",
+    ]);
+    const ALLOWED_EXT = new Set([
+      ".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp",
+      ".heic", ".heif", ".avif", ".tiff", ".tif",
+    ]);
+    const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+    if (!ALLOWED_MIME.has(file.type) && !ALLOWED_EXT.has(ext)) {
       return Promise.reject(
-        new Error("Formato não suportado. Use JPEG, PNG ou WebP.")
+        new Error(
+          "Formato não suportado. Use JPEG, PNG, WebP, GIF, BMP, HEIC/HEIF, AVIF ou TIFF."
+        )
       );
     }
     return api.post("/uploads/image", makeFormData(file), UPLOAD_CONFIG);

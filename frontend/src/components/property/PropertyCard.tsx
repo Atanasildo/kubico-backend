@@ -42,12 +42,12 @@ export function PropertyCard({ property, isFavorited = false, onFavoriteChange }
     <Link
       href={`/imoveis/${property.id}`}
       className={cn(
-        "card group block overflow-hidden",
+        "card group block overflow-hidden dark:bg-dark-card dark:border-dark-border",
         isDestaque && "ring-2 ring-terra-400"
       )}
     >
       {/* Image */}
-      <div className="relative h-52 w-full overflow-hidden bg-surface-muted">
+      <div className="relative h-52 w-full overflow-hidden bg-surface-muted dark:bg-dark-surface">
         <Image
           src={getFirstImage(property.imagens)}
           alt={property.titulo}
@@ -78,8 +78,8 @@ export function PropertyCard({ property, isFavorited = false, onFavoriteChange }
         <button
           onClick={handleFav}
           className={cn(
-            "absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 backdrop-blur-sm transition-all hover:scale-110",
-            fav ? "text-red-500" : "text-primary-400"
+            "absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 dark:bg-dark-card/90 backdrop-blur-sm transition-all hover:scale-110",
+            fav ? "text-red-500" : "text-primary-400 dark:text-slate-400"
           )}
         >
           <Heart className={cn("h-4 w-4", fav && "fill-current")} />
@@ -90,22 +90,22 @@ export function PropertyCard({ property, isFavorited = false, onFavoriteChange }
       <div className="p-4">
         {/* Price */}
         <div className="mb-1 flex items-baseline justify-between">
-          <span className="font-display text-lg font-bold text-primary-900">
+          <span className="font-display text-lg font-bold text-primary-900 dark:text-white">
             {formatPrice(property.preco, property.moeda)}
             {property.tipo_negocio === "arrendamento" && (
-              <span className="ml-1 text-xs font-normal text-primary-500">/mês</span>
+              <span className="ml-1 text-xs font-normal text-primary-500 dark:text-slate-400">/mês</span>
             )}
           </span>
-          <span className="text-xs text-primary-400">{timeAgo(property.criado_em)}</span>
+          <span className="text-xs text-primary-400 dark:text-slate-500">{timeAgo(property.criado_em)}</span>
         </div>
 
         {/* Title */}
-        <h3 className="mb-2 line-clamp-1 text-sm font-semibold text-primary-900 group-hover:text-primary-600 transition-colors">
+        <h3 className="mb-2 line-clamp-1 text-sm font-semibold text-primary-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
           {property.titulo}
         </h3>
 
         {/* Location */}
-        <p className="mb-3 flex items-center gap-1 text-xs text-primary-500">
+        <p className="mb-3 flex items-center gap-1 text-xs text-primary-500 dark:text-slate-400">
           <MapPin className="h-3.5 w-3.5 shrink-0" />
           <span className="line-clamp-1">
             {property.bairro ? `${property.bairro}, ` : ""}
@@ -114,8 +114,8 @@ export function PropertyCard({ property, isFavorited = false, onFavoriteChange }
         </p>
 
         {/* Meta */}
-        <div className="flex items-center gap-3 text-xs text-primary-600">
-          <span className="rounded-lg bg-primary-50 px-2 py-1">
+        <div className="flex items-center gap-3 text-xs text-primary-600 dark:text-slate-300">
+          <span className="rounded-lg bg-primary-50 dark:bg-dark-elevated px-2 py-1">
             {tipoImovelLabel(property.tipo_imovel)}
           </span>
           {property.quartos != null && (

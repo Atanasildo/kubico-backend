@@ -11,34 +11,96 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Magic bytes: prefix -> mime type
+# HEIC/HEIF/AVIF are ISO Base Media File Format (ftyp box at offset 4)
 _IMAGE_MAGIC: dict[bytes, str] = {
     b"\xff\xd8\xff": "image/jpeg",
     b"\x89PNG\r\n\x1a\n": "image/png",
     b"RIFF": "image/webp",
+    b"GIF87a": "image/gif",
+    b"GIF89a": "image/gif",
+    b"BM": "image/bmp",
 }
-_ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+
+_FTYP_BRANDS_HEIC = {b"heic", b"heix", b"hevc", b"hevx", b"heim", b"heis", b"hevm", b"hevs", b"mif1"}
+_FTYP_BRANDS_AVIF = {b"avif", b"avis"}
+
+_ALLOWED_IMAGE_EXTENSIONS = {
+    ".jpg", ".jpeg",   # JPEG
+    ".png",            # PNG
+    ".webp",           # WebP
+    ".gif",            # GIF
+    ".bmp",            # BMP
+    ".heic", ".heif",  # HEIC / HEIF (iPhone)
+    ".avif",           # AVIF
+    ".tiff", ".tif",   # TIFF
+}
+
 _ALLOWED_VIDEO_EXTENSIONS = {".mp4", ".mov", ".webm"}
 
+# Extension -> mime fallback (for formats without simple prefix magic)
+_EXT_MIME: dict[str, str] = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+    ".bmp": "image/bmp",
+    ".heic": "image/heic",
+    ".heif": "image/heif",
+    ".avif": "image/avif",
+    ".tiff": "image/tiff",
+    ".tif": "image/tiff",
+}
 
-def _validate_image_magic(data: bytes) -> str:
+
+def _check_ftyp_brand(data: bytes, brands: set[bytes]) -> bool:
+    """ISO BMFF: box size (4 bytes) + 'ftyp' (4 bytes) + major brand (4 bytes)."""
+    if len(data) < 12:
+        return False
+    if data[4:8] != b"ftyp":
+        return False
+    major = data[8:12].lower().rstrip(b"\x00")
+    return major in brands
+
+
+def _validate_image_magic(data: bytes, ext: str) -> str:
+    # Standard magic prefix check
     for magic, mime in _IMAGE_MAGIC.items():
         if data[: len(magic)] == magic:
             if mime == "image/webp" and data[8:12] != b"WEBP":
                 continue
             return mime
+
+    # TIFF: little-endian II or big-endian MM
+    if len(data) >= 4 and data[:2] in (b"II", b"MM") and data[2:4] in (b"*\x00", b"\x00*"):
+        return "image/tiff"
+
+    # ISO BMFF containers: HEIC/HEIF and AVIF
+    if _check_ftyp_brand(data, _FTYP_BRANDS_HEIC):
+        return "image/heic"
+    if _check_ftyp_brand(data, _FTYP_BRANDS_AVIF):
+        return "image/avif"
+
+    # Fallback: trust the extension if it's in our allowed set
+    mime = _EXT_MIME.get(ext)
+    if mime:
+        return mime
+
     raise HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,
-        detail="Ficheiro nao reconhecido como imagem valida (JPEG, PNG ou WebP).",
+        detail="Ficheiro não reconhecido como imagem válida.",
     )
 
 
 async def _read_and_validate_image(file: UploadFile) -> tuple[bytes, str]:
+    ext = ""
     if file.filename:
         ext = Path(file.filename).suffix.lower()
         if ext not in _ALLOWED_IMAGE_EXTENSIONS:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Extensao nao permitida. Use JPEG, PNG ou WebP.",
+                detail=f"Extensão não permitida: {ext}. Use JPEG, PNG, WebP, GIF, BMP, HEIC/HEIF, AVIF ou TIFF.",
             )
     data = await file.read()
     await file.seek(0)
@@ -48,7 +110,7 @@ async def _read_and_validate_image(file: UploadFile) -> tuple[bytes, str]:
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail=f"Imagem maior que {settings.MAX_UPLOAD_SIZE_MB} MB.",
         )
-    mime = _validate_image_magic(data)
+    mime = _validate_image_magic(data, ext)
     return data, mime
 
 
@@ -58,7 +120,7 @@ async def _read_and_validate_video(file: UploadFile) -> tuple[bytes, str]:
         if ext not in _ALLOWED_VIDEO_EXTENSIONS:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Extensao de video nao permitida. Use MP4, MOV ou WebM.",
+                detail="Extensão de vídeo não permitida. Use MP4, MOV ou WebM.",
             )
     data = await file.read()
     await file.seek(0)
@@ -66,7 +128,7 @@ async def _read_and_validate_video(file: UploadFile) -> tuple[bytes, str]:
     if len(data) > max_bytes:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"Video maior que {settings.MAX_VIDEO_SIZE_MB} MB.",
+            detail=f"Vídeo maior que {settings.MAX_VIDEO_SIZE_MB} MB.",
         )
     ct = file.content_type or "video/mp4"
     return data, ct
@@ -140,7 +202,7 @@ async def upload_media(file: UploadFile, entity_type: str, is_video: bool = Fals
     if _supabase_configured():
         return await _supabase_upload(key, data, content_type)
 
-    logger.warning("SUPABASE nao configurado - a guardar localmente (ephemeral no Render).")
+    logger.warning("SUPABASE não configurado - a guardar localmente (ephemeral no Render).")
     return _local_upload(data, subfolder, unique_name)
 
 
