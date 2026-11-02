@@ -48,8 +48,10 @@ export function useAuthProvider(): AuthState {
     }
   }, [refresh]);
 
+  // Assinatura pública mantida (email, password) para compatibilidade —
+  // internamente mapeia para o campo "senha" que o backend espera
   const login = useCallback(async (email: string, password: string) => {
-    const { data } = await authApi.login(email, password);
+    const { data } = await authApi.login({ email, senha: password });
     tokenStorage.set(data.access_token, data.refresh_token);
     const me = await authApi.me();
     setUser(me.data);
