@@ -45,29 +45,39 @@ class Settings(BaseSettings):
     SMS_API_KEY: str = ""
     SMS_SENDER_ID: str = "KUBICO"
 
-    # S3 / MinIO (imagens e vídeos dos imóveis)
+    # ── Supabase Storage (preferido — grátis, sem cartão) ─────────────────────
+    # SUPABASE_URL        → https://<ref>.supabase.co
+    # SUPABASE_SERVICE_KEY→ service_role JWT (Settings → API)
+    # SUPABASE_BUCKET     → nome do bucket (ex: kubico-images)
+    SUPABASE_URL: str = ""
+    SUPABASE_SERVICE_KEY: str = ""
+    SUPABASE_BUCKET: str = ""
+
+    # ── S3 / MinIO fallback (opcional) ───────────────────────────────────────
     S3_BUCKET: str = ""
     S3_ACCESS_KEY: str = ""
     S3_SECRET_KEY: str = ""
     S3_REGION: str = "af-south-1"
     S3_ENDPOINT_URL: str = ""
     S3_PUBLIC_URL_BASE: str = ""
+
+    # Limites de upload
     MAX_UPLOAD_SIZE_MB: int = 50
     MAX_VIDEO_SIZE_MB: int = 80
 
-    # Upload local (fallback dev)
+    # Upload local (fallback dev — perdido em cada restart do Render)
     LOCAL_UPLOAD_DIR: str = "/tmp/kubico_uploads"
     LOCAL_UPLOAD_PUBLIC_BASE: str = "/uploads"
 
-    # Destaques pagos (planos de anúncio)
+    # Destaques pagos
     DESTAQUE_PRECO_7_DIAS: float = 1500.0
     DESTAQUE_PRECO_15_DIAS: float = 2500.0
     DESTAQUE_PRECO_30_DIAS: float = 4000.0
 
-    # Plano agente (anúncios ilimitados)
+    # Plano agente
     PLANO_AGENTE_PRECO_MENSAL: float = 8000.0
 
-    # Pagamentos (ProxyPay / Multicaixa Express — mesmo gateway sandbox do AgroLink)
+    # Pagamentos (ProxyPay / Multicaixa Express)
     PROXYPAY_BASE_URL: str = "https://api.proxypay.co.ao"
     PROXYPAY_BEARER_TOKEN: str = ""
     PROXYPAY_POS_ID: str = ""
