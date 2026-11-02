@@ -11,7 +11,7 @@ export default function LoginPage() {
   const { refresh } = useAuth();
   const router = useRouter();
 
-  const [form, setForm] = useState({ email: "", password: "" });
+  const [form, setForm] = useState({ email: "", senha: "" });
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,13 +24,17 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      const { data } = await authApi.login(form);
+      const { data } = await authApi.login({ email: form.email, senha: form.senha });
       tokenStorage.set(data.access_token, data.refresh_token);
       await refresh();
       router.push("/dashboard");
     } catch (err: any) {
       const detail = err?.response?.data?.detail;
-      setError(typeof detail === "string" ? detail : "Credenciais inválidas. Tenta novamente.");
+      if (typeof detail === "string") {
+        setError(detail);
+      } else {
+        setError("Credenciais inválidas. Verifica o email e a senha.");
+      }
     } finally {
       setLoading(false);
     }
@@ -45,7 +49,7 @@ export default function LoginPage() {
 
         <div className="relative flex items-center gap-2.5">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-600">
-            <Home className="h-4.5 w-4.5 text-white" />
+            <Home className="h-5 w-5 text-white" />
           </div>
           <span className="font-display text-2xl font-extrabold text-white">Kubico</span>
         </div>
@@ -126,8 +130,8 @@ export default function LoginPage() {
               <div className="relative">
                 <input
                   type={showPw ? "text" : "password"}
-                  value={form.password}
-                  onChange={set("password")}
+                  value={form.senha}
+                  onChange={set("senha")}
                   placeholder="A tua palavra-passe"
                   required
                   autoComplete="current-password"
@@ -144,9 +148,9 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-400">
-                {error}
-              </p>
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 dark:border-red-900 dark:bg-red-950/40">
+                <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+              </div>
             )}
 
             <button
