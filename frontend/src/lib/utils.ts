@@ -369,7 +369,8 @@ export const BAIRROS_POR_MUNICIPIO: Record<string, string[]> = {
 };
 
 export function provincias(): string[] {
-  return GEO_ANGOLA.map((p) => p.nome);
+  const seen = new Set<string>();
+  return GEO_ANGOLA.map((p) => p.nome).filter((n) => { if (seen.has(n)) return false; seen.add(n); return true; });
 }
 
 export function municipiosByProvincia(provincia: string): string[] {
