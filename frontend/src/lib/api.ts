@@ -88,17 +88,22 @@ api.interceptors.response.use(
 
 // ── Auth endpoints ─────────────────────────────────────────────────────────────
 export const authApi = {
+  /**
+   * Cria conta. O backend espera { nome, email, senha, telefone? }
+   * e devolve Token { access_token, refresh_token }.
+   */
   register: (data: {
     nome: string;
     email: string;
-    password: string;
+    senha: string;           // ← backend usa "senha", não "password"
     telefone?: string;
   }) => api.post("/auth/register", data),
 
-  login: (email: string, password: string) =>
-    api.post("/auth/login", new URLSearchParams({ username: email, password }), {
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    }),
+  /**
+   * Faz login. O backend espera JSON { email, senha }.
+   */
+  login: (data: { email: string; senha: string }) =>
+    api.post("/auth/login", data),
 
   me: () => api.get("/auth/me"),
 };
