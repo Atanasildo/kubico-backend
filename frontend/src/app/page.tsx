@@ -4,15 +4,17 @@ import { FeaturedCarousel } from "@/components/property/FeaturedCarousel";
 import { ArrowRight, ShieldCheck, Star, Users, TrendingUp } from "lucide-react";
 import Link from "next/link";
 
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
+
 async function getFeaturedProperties() {
   try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1"}/properties/?limit=12&ordering=-criado_em`,
-      { next: { revalidate: 60 } }
-    );
+    const res = await fetch(`${API}/properties/?limit=12`, {
+      next: { revalidate: 60 },
+    });
     if (!res.ok) return [];
     const data = await res.json();
-    return data.items ?? [];
+    // backend returns list directly — not { items: [] }
+    return Array.isArray(data) ? data : (data.items ?? []);
   } catch {
     return [];
   }
@@ -20,13 +22,12 @@ async function getFeaturedProperties() {
 
 async function getRecentProperties() {
   try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1"}/properties/?limit=6`,
-      { next: { revalidate: 60 } }
-    );
+    const res = await fetch(`${API}/properties/?limit=6`, {
+      next: { revalidate: 60 },
+    });
     if (!res.ok) return [];
     const data = await res.json();
-    return data.items ?? [];
+    return Array.isArray(data) ? data : (data.items ?? []);
   } catch {
     return [];
   }
@@ -42,7 +43,6 @@ export default async function HomePage() {
     <>
       {/* ── Hero ── */}
       <section className="relative overflow-hidden bg-gradient-to-br from-primary-950 via-[#0f1d44] to-primary-900 dark:from-dark-bg dark:via-dark-surface dark:to-dark-bg px-4 pb-28 pt-20 sm:px-6">
-        {/* Luz orgânica fundo */}
         <div className="pointer-events-none absolute -right-48 -top-48 h-[600px] w-[600px] rounded-full bg-primary-700/20 blur-[140px]" />
         <div className="pointer-events-none absolute left-1/4 top-1/2 h-96 w-96 rounded-full bg-terra-500/10 blur-[100px]" />
         <div className="pointer-events-none absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-primary-800/30 blur-[80px]" />
@@ -51,7 +51,6 @@ export default async function HomePage() {
           <p className="mb-4 text-xs font-semibold uppercase tracking-[0.22em] text-terra-400">
             Imóveis em Angola
           </p>
-
           <h1 className="mb-5 font-display text-4xl font-extrabold leading-[1.08] text-white sm:text-5xl md:text-[3.75rem]">
             Encontra o teu
             <br />
@@ -59,16 +58,12 @@ export default async function HomePage() {
               lar perfeito
             </span>
           </h1>
-
           <p className="mb-10 mx-auto max-w-xl text-base text-primary-300/85 sm:text-lg">
             Milhares de imóveis para arrendar e comprar nas 21 províncias de Angola.
           </p>
-
           <div className="mx-auto max-w-3xl">
             <SearchBar />
           </div>
-
-          {/* Quick categories */}
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             {[
               { label: "Apartamentos", emoji: "🏠", q: "tipo_imovel=apartamento" },
@@ -100,7 +95,9 @@ export default async function HomePage() {
               { value: "98%", label: "Anúncios verificados" },
             ].map((s) => (
               <div key={s.label}>
-                <p className="font-display text-2xl font-extrabold text-primary-700 dark:text-terra-400">{s.value}</p>
+                <p className="font-display text-2xl font-extrabold text-primary-700 dark:text-terra-400">
+                  {s.value}
+                </p>
                 <p className="text-xs text-primary-500 dark:text-slate-400">{s.label}</p>
               </div>
             ))}
@@ -108,7 +105,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ── Carrossel automático de anúncios ── */}
+      {/* ── Carrossel ── */}
       {featured.length > 0 && (
         <section className="py-14 px-4 sm:px-6 overflow-hidden bg-white dark:bg-dark-bg">
           <div className="mx-auto max-w-7xl mb-8 flex items-center justify-between">
@@ -128,7 +125,6 @@ export default async function HomePage() {
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
-
           <FeaturedCarousel properties={featured} />
         </section>
       )}
