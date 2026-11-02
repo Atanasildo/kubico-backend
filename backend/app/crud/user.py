@@ -15,6 +15,10 @@ def get_user_by_email(db: Session, email: str) -> User | None:
     return db.query(User).filter(User.email == email).first()
 
 
+def get_user_by_phone(db: Session, telefone: str) -> User | None:
+    return db.query(User).filter(User.telefone == telefone).first()
+
+
 def create_user(db: Session, user_in: UserCreate) -> User:
     db_user = User(
         nome=user_in.nome,
