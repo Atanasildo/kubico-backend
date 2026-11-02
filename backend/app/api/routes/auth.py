@@ -14,11 +14,19 @@ from app.schemas.user import ChangePasswordRequest, UserCreate, UserLogin, UserR
 router = APIRouter(prefix="/auth", tags=["Autenticação"])
 
 
-@router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
+@router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
 def register(user_in: UserCreate, db: Session = Depends(get_db)):
+    """Cria conta e devolve tokens prontos a usar — sem precisar de fazer login separado."""
     if get_user_by_email(db, user_in.email):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email já registado.")
-    return create_user(db, user_in)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Este email já está registado.",
+        )
+    user = create_user(db, user_in)
+    return Token(
+        access_token=create_access_token(str(user.id)),
+        refresh_token=create_refresh_token(str(user.id)),
+    )
 
 
 @router.post("/login", response_model=Token)
@@ -30,7 +38,10 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
             detail="Email ou senha incorretos.",
         )
     if not user.ativo:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Conta desativada.")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Conta desactivada. Contacta o suporte.",
+        )
     return Token(
         access_token=create_access_token(str(user.id)),
         refresh_token=create_refresh_token(str(user.id)),
