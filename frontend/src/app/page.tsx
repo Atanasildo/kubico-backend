@@ -23,33 +23,37 @@ export default async function HomePage() {
   return (
     <>
       {/* Hero */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-primary-950 via-primary-900 to-primary-800 px-4 pb-20 pt-16 sm:px-6">
-        {/* decorative circles */}
-        <div className="pointer-events-none absolute -right-32 -top-32 h-96 w-96 rounded-full bg-primary-700/30 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-terra-500/20 blur-3xl" />
+      <section className="relative overflow-hidden bg-gradient-to-br from-primary-950 via-primary-900 to-primary-800 px-4 pb-24 pt-20 sm:px-6">
+        {/* Manchas de luz orgânicas */}
+        <div className="pointer-events-none absolute -right-40 -top-40 h-[500px] w-[500px] rounded-full bg-primary-700/25 blur-[120px]" />
+        <div className="pointer-events-none absolute -bottom-20 left-1/3 h-72 w-72 rounded-full bg-terra-500/15 blur-[80px]" />
+        <div className="pointer-events-none absolute bottom-0 right-0 h-48 w-64 rounded-full bg-primary-600/20 blur-[60px]" />
 
         <div className="relative mx-auto max-w-4xl text-center">
-          <span className="mb-4 inline-block rounded-full bg-terra-500/20 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-terra-300">
-            A plataforma angolana de imóveis
-          </span>
-          <h1 className="mb-5 font-display text-4xl font-extrabold leading-tight text-white sm:text-5xl md:text-6xl">
+          {/* Tagline discreta — sem badge circular */}
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-terra-400/80">
+            Imóveis em Angola
+          </p>
+
+          <h1 className="mb-5 font-display text-4xl font-extrabold leading-[1.1] text-white sm:text-5xl md:text-6xl">
             Encontra o teu
-            <span className="text-terra-400"> lar perfeito</span>
-            <br />em Angola
+            <br />
+            <span className="text-terra-400">lar perfeito</span>
           </h1>
-          <p className="mb-10 text-base text-primary-300 sm:text-lg">
-            Milhares de imóveis para arrendar e comprar nas 18 províncias.
+
+          <p className="mb-10 mx-auto max-w-xl text-base text-primary-300/90 sm:text-lg">
+            Milhares de imóveis para arrendar e comprar nas 21 províncias de Angola.
           </p>
 
           <div className="mx-auto max-w-3xl">
             <SearchBar />
           </div>
 
-          <div className="mt-8 flex flex-wrap justify-center gap-6 text-sm text-primary-400">
-            <span>🏠 Apartamentos</span>
-            <span>🏡 Casas</span>
-            <span>🏗️ Terrenos</span>
-            <span>🏪 Lojas</span>
+          <div className="mt-8 flex flex-wrap justify-center gap-4 text-sm text-primary-400">
+            <span className="flex items-center gap-1.5"><span className="text-base">🏠</span> Apartamentos</span>
+            <span className="flex items-center gap-1.5"><span className="text-base">🏡</span> Casas</span>
+            <span className="flex items-center gap-1.5"><span className="text-base">🏗️</span> Terrenos</span>
+            <span className="flex items-center gap-1.5"><span className="text-base">🏪</span> Lojas</span>
           </div>
         </div>
       </section>
