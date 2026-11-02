@@ -5,7 +5,7 @@ const BASE_URL =
 
 export const api = axios.create({
   baseURL: BASE_URL,
-  timeout: 15_000,
+  timeout: 30_000,
   headers: { "Content-Type": "application/json" },
 });
 
@@ -53,7 +53,7 @@ api.interceptors.response.use(
     const refresh = tokenStorage.getRefresh();
     if (!refresh) {
       tokenStorage.clear();
-      window.location.href = "/auth/login";
+      if (typeof window !== "undefined") window.location.href = "/auth/login";
       return Promise.reject(error);
     }
 
@@ -78,7 +78,7 @@ api.interceptors.response.use(
       return api(original);
     } catch {
       tokenStorage.clear();
-      window.location.href = "/auth/login";
+      if (typeof window !== "undefined") window.location.href = "/auth/login";
       return Promise.reject(error);
     } finally {
       refreshing = false;
@@ -88,23 +88,17 @@ api.interceptors.response.use(
 
 // ── Auth endpoints ─────────────────────────────────────────────────────────────
 export const authApi = {
-  /**
-   * Cria conta. O backend espera { nome, email, senha, telefone? }
-   * e devolve Token { access_token, refresh_token }.
-   */
   register: (data: {
     nome: string;
     email: string;
-    senha: string;           // ← backend usa "senha", não "password"
+    senha: string;
     telefone?: string;
   }) => api.post("/auth/register", data),
 
-  /**
-   * Faz login. O backend espera JSON { email, senha }.
-   */
   login: (data: { email: string; senha: string }) =>
     api.post("/auth/login", data),
 
+  // uses /auth/me — lightweight, no extra DB join
   me: () => api.get("/auth/me"),
 };
 
@@ -145,27 +139,32 @@ export const paymentApi = {
 };
 
 // ── Uploads ───────────────────────────────────────────────────────────────────
+// IMPORTANT: do NOT set Content-Type manually for multipart — axios must set it
+// automatically so the boundary is correctly included. Setting it manually
+// breaks the request and causes 400 Bad Request.
 export const uploadApi = {
   image: (file: File) => {
+    // restrict to formats the backend accepts
+    const allowed = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowed.includes(file.type)) {
+      return Promise.reject(
+        new Error("Formato não suportado. Use JPEG, PNG ou WebP.")
+      );
+    }
     const fd = new FormData();
     fd.append("file", file);
-    return api.post("/uploads/image", fd, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    // no Content-Type header — let axios/browser set it with boundary
+    return api.post("/uploads/image", fd);
   },
   video: (file: File) => {
     const fd = new FormData();
     fd.append("file", file);
-    return api.post("/uploads/video", fd, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    return api.post("/uploads/video", fd);
   },
   profilePhoto: (file: File) => {
     const fd = new FormData();
     fd.append("file", file);
-    return api.post("/uploads/profile-photo", fd, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    return api.post("/uploads/profile-photo", fd);
   },
 };
 
