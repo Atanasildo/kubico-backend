@@ -12,12 +12,23 @@ from app.models import user, property, favorite, payment, lead, report, verifica
 
 def run():
     with engine.begin() as conn:
-        # 1. Create the userrole enum type if it doesn't exist
+        # 1. Ensure userrole enum exists with all required values
         conn.execute(text("""
             DO $$
             BEGIN
                 IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'userrole') THEN
                     CREATE TYPE userrole AS ENUM ('particular', 'agente', 'admin');
+                ELSE
+                    -- Add missing values to existing enum (safe, idempotent)
+                    IF NOT EXISTS (SELECT 1 FROM pg_enum e JOIN pg_type t ON e.enumtypid = t.oid WHERE t.typname = 'userrole' AND e.enumlabel = 'particular') THEN
+                        ALTER TYPE userrole ADD VALUE 'particular';
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_enum e JOIN pg_type t ON e.enumtypid = t.oid WHERE t.typname = 'userrole' AND e.enumlabel = 'agente') THEN
+                        ALTER TYPE userrole ADD VALUE 'agente';
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_enum e JOIN pg_type t ON e.enumtypid = t.oid WHERE t.typname = 'userrole' AND e.enumlabel = 'admin') THEN
+                        ALTER TYPE userrole ADD VALUE 'admin';
+                    END IF;
                 END IF;
             END
             $$;
