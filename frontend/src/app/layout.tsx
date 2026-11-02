@@ -24,7 +24,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt" suppressHydrationWarning>
-      <body className="flex min-h-screen flex-col">
+      <body className="flex min-h-screen flex-col bg-surface dark:bg-dark-bg transition-colors duration-300">
         <AuthProvider>
           <Navbar />
           <main className="flex-1">{children}</main>
