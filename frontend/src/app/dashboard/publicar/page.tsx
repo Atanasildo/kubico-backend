@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
@@ -9,7 +9,7 @@ import { provincias, tipoImovelLabel } from "@/lib/utils";
 import { TipoNegocio, TipoImovel } from "@/types";
 import {
   ArrowLeft, Upload, X, CheckCircle2, AlertCircle,
-  MapPin, Navigation, Loader2,
+  Navigation, Loader2,
 } from "lucide-react";
 
 const TIPO_IMOVEL_OPTIONS: TipoImovel[] = [
@@ -31,7 +31,6 @@ function GpsPicker({
   const [geoError, setGeoError] = useState("");
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  // build OSM embed URL from current coords
   const hasCoords = lat !== "" && lng !== "";
   const iframeSrc = hasCoords
     ? `https://www.openstreetmap.org/export/embed.html?bbox=${
@@ -71,7 +70,10 @@ function GpsPicker({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <label className="label mb-0">Coordenadas GPS <span className="text-primary-400 dark:text-slate-500 font-normal">(opcional)</span></label>
+        <label className="label mb-0">
+          Coordenadas GPS{" "}
+          <span className="text-primary-400 dark:text-slate-500 font-normal">(opcional)</span>
+        </label>
         <button
           type="button"
           onClick={locate}
@@ -129,7 +131,6 @@ function GpsPicker({
         </p>
       )}
 
-      {/* OSM embed preview */}
       <div className="overflow-hidden rounded-xl border border-surface-border dark:border-dark-border">
         <iframe
           ref={iframeRef}
@@ -161,7 +162,7 @@ function GpsPicker({
   );
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────────
+// ── Inner component — uses useSearchParams, must be inside Suspense ───────────
 const EMPTY_FORM = {
   titulo: "",
   descricao: "",
@@ -185,8 +186,7 @@ const EMPTY_FORM = {
   contacto_whatsapp: "",
 };
 
-export default function PublicarPage() {
-  const { user } = useAuth();
+function PublicarInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const editId = searchParams.get("edit");
@@ -201,7 +201,6 @@ export default function PublicarPage() {
   const [success, setSuccess] = useState(false);
   const [loadingEdit, setLoadingEdit] = useState(isEdit);
 
-  // Load existing property when in edit mode
   useEffect(() => {
     if (!editId) return;
     propertyApi.get(editId).then(({ data }) => {
@@ -262,9 +261,7 @@ export default function PublicarPage() {
       return !ALLOWED_MIME.has(f.type) && !ALLOWED_EXT.has(ext);
     });
     if (invalid.length) {
-      setUploadError(
-        `Formato não suportado: ${invalid.map((f) => f.name).join(", ")}.`
-      );
+      setUploadError(`Formato não suportado: ${invalid.map((f) => f.name).join(", ")}.`);
       e.target.value = "";
       return;
     }
@@ -277,33 +274,23 @@ export default function PublicarPage() {
         const { data } = await uploadApi.image(file);
         urls.push(data.url);
       } catch (err: any) {
-        const msg =
-          err?.response?.data?.detail ||
-          err?.message ||
-          "Falha ao carregar imagem.";
+        const msg = err?.response?.data?.detail || err?.message || "Falha ao carregar imagem.";
         setUploadError(msg);
       }
     }
-    if (urls.length) {
-      setImages((prev) => [...prev, ...urls].slice(0, 20));
-    }
+    if (urls.length) setImages((prev) => [...prev, ...urls].slice(0, 20));
     setUploading(false);
     e.target.value = "";
   };
 
-  const removeImage = (url: string) =>
-    setImages((prev) => prev.filter((u) => u !== url));
+  const removeImage = (url: string) => setImages((prev) => prev.filter((u) => u !== url));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setSubmitting(true);
     try {
-      const payload: any = {
-        ...form,
-        preco: parseFloat(form.preco),
-        imagens: images,
-      };
+      const payload: any = { ...form, preco: parseFloat(form.preco), imagens: images };
       if (form.area_m2) payload.area_m2 = parseFloat(form.area_m2);
       if (form.quartos) payload.quartos = parseInt(form.quartos);
       if (form.casas_banho) payload.casas_banho = parseInt(form.casas_banho);
@@ -313,7 +300,7 @@ export default function PublicarPage() {
       else delete payload.latitude;
       if (form.longitude !== "") payload.longitude = parseFloat(form.longitude);
       else delete payload.longitude;
-      ["area_m2", "quartos", "casas_banho"].forEach((k) => {
+      ["area_m2","quartos","casas_banho"].forEach((k) => {
         if (payload[k] === "" || payload[k] == null) delete payload[k];
       });
 
@@ -355,9 +342,7 @@ export default function PublicarPage() {
           <h2 className="font-display text-xl font-bold text-primary-900 dark:text-white">
             {isEdit ? "Anúncio actualizado!" : "Anúncio publicado!"}
           </h2>
-          <p className="mt-1 text-sm text-primary-500 dark:text-slate-400">
-            A redirecionar...
-          </p>
+          <p className="mt-1 text-sm text-primary-500 dark:text-slate-400">A redirecionar...</p>
         </div>
       </div>
     );
@@ -365,7 +350,6 @@ export default function PublicarPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
-      {/* Header */}
       <div className="mb-6 flex items-center gap-3">
         <Link
           href="/dashboard/anuncios"
@@ -381,13 +365,11 @@ export default function PublicarPage() {
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* Tipo */}
         <div className="card p-5 space-y-4 dark:bg-dark-card dark:border-dark-border">
-          <h2 className="font-display text-base font-bold text-primary-900 dark:text-white">
-            Tipo de anúncio
-          </h2>
+          <h2 className="font-display text-base font-bold text-primary-900 dark:text-white">Tipo de anúncio</h2>
           <div>
             <label className="label">Negócio</label>
             <div className="flex gap-2">
-              {(["arrendamento", "venda"] as TipoNegocio[]).map((t) => (
+              {(["arrendamento","venda"] as TipoNegocio[]).map((t) => (
                 <button
                   key={t}
                   type="button"
@@ -415,36 +397,19 @@ export default function PublicarPage() {
 
         {/* Info */}
         <div className="card p-5 space-y-4 dark:bg-dark-card dark:border-dark-border">
-          <h2 className="font-display text-base font-bold text-primary-900 dark:text-white">
-            Informações
-          </h2>
+          <h2 className="font-display text-base font-bold text-primary-900 dark:text-white">Informações</h2>
           <div>
             <label className="label">Título *</label>
-            <input
-              value={form.titulo}
-              onChange={set("titulo")}
-              placeholder="Ex: Apartamento T3 no Talatona"
-              required minLength={5} maxLength={150}
-              className="input"
-            />
+            <input value={form.titulo} onChange={set("titulo")} placeholder="Ex: Apartamento T3 no Talatona" required minLength={5} maxLength={150} className="input" />
           </div>
           <div>
             <label className="label">Descrição</label>
-            <textarea
-              value={form.descricao}
-              onChange={set("descricao")}
-              placeholder="Descreve o imóvel em detalhe..."
-              rows={4} maxLength={3000}
-              className="input resize-none"
-            />
+            <textarea value={form.descricao} onChange={set("descricao")} placeholder="Descreve o imóvel em detalhe..." rows={4} maxLength={3000} className="input resize-none" />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className="label">Preço *</label>
-              <input
-                type="number" value={form.preco} onChange={set("preco")}
-                placeholder="Ex: 150000" required min="0" className="input"
-              />
+              <input type="number" value={form.preco} onChange={set("preco")} placeholder="Ex: 150000" required min="0" className="input" />
             </div>
             <div>
               <label className="label">Moeda</label>
@@ -458,42 +423,27 @@ export default function PublicarPage() {
 
         {/* Location */}
         <div className="card p-5 space-y-4 dark:bg-dark-card dark:border-dark-border">
-          <h2 className="font-display text-base font-bold text-primary-900 dark:text-white">
-            Localização
-          </h2>
+          <h2 className="font-display text-base font-bold text-primary-900 dark:text-white">Localização</h2>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className="label">Província *</label>
               <select value={form.provincia} onChange={set("provincia")} className="input">
-                {provincias().map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
+                {provincias().map((p) => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
             <div>
               <label className="label">Município *</label>
-              <input
-                value={form.municipio} onChange={set("municipio")}
-                placeholder="Ex: Talatona" required className="input"
-              />
+              <input value={form.municipio} onChange={set("municipio")} placeholder="Ex: Talatona" required className="input" />
             </div>
           </div>
           <div>
             <label className="label">Bairro</label>
-            <input
-              value={form.bairro} onChange={set("bairro")}
-              placeholder="Ex: Bairro Popular" className="input"
-            />
+            <input value={form.bairro} onChange={set("bairro")} placeholder="Ex: Bairro Popular" className="input" />
           </div>
           <div>
             <label className="label">Referência de endereço</label>
-            <input
-              value={form.endereco_referencia} onChange={set("endereco_referencia")}
-              placeholder="Ex: Próximo ao Belas Shopping" className="input"
-            />
+            <input value={form.endereco_referencia} onChange={set("endereco_referencia")} placeholder="Ex: Próximo ao Belas Shopping" className="input" />
           </div>
-
-          {/* GPS Picker */}
           <div className="border-t border-surface-border dark:border-dark-border pt-4">
             <GpsPicker
               lat={form.latitude}
@@ -505,30 +455,19 @@ export default function PublicarPage() {
 
         {/* Details */}
         <div className="card p-5 space-y-4 dark:bg-dark-card dark:border-dark-border">
-          <h2 className="font-display text-base font-bold text-primary-900 dark:text-white">
-            Detalhes
-          </h2>
+          <h2 className="font-display text-base font-bold text-primary-900 dark:text-white">Detalhes</h2>
           <div className="grid gap-3 sm:grid-cols-3">
             <div>
               <label className="label">Área (m²)</label>
-              <input
-                type="number" value={form.area_m2} onChange={set("area_m2")}
-                placeholder="Ex: 120" min="0" className="input"
-              />
+              <input type="number" value={form.area_m2} onChange={set("area_m2")} placeholder="Ex: 120" min="0" className="input" />
             </div>
             <div>
               <label className="label">Quartos</label>
-              <input
-                type="number" value={form.quartos} onChange={set("quartos")}
-                placeholder="Ex: 3" min="0" max="50" className="input"
-              />
+              <input type="number" value={form.quartos} onChange={set("quartos")} placeholder="Ex: 3" min="0" max="50" className="input" />
             </div>
             <div>
               <label className="label">Casas de banho</label>
-              <input
-                type="number" value={form.casas_banho} onChange={set("casas_banho")}
-                placeholder="Ex: 2" min="0" max="50" className="input"
-              />
+              <input type="number" value={form.casas_banho} onChange={set("casas_banho")} placeholder="Ex: 2" min="0" max="50" className="input" />
             </div>
           </div>
           <div>
@@ -541,17 +480,11 @@ export default function PublicarPage() {
           </div>
           <div className="flex gap-6">
             <label className="flex cursor-pointer items-center gap-2">
-              <input
-                type="checkbox" checked={form.tem_garagem} onChange={set("tem_garagem")}
-                className="h-4 w-4 rounded border-surface-border text-primary-600"
-              />
+              <input type="checkbox" checked={form.tem_garagem} onChange={set("tem_garagem")} className="h-4 w-4 rounded border-surface-border text-primary-600" />
               <span className="text-sm text-primary-800 dark:text-slate-300">Garagem</span>
             </label>
             <label className="flex cursor-pointer items-center gap-2">
-              <input
-                type="checkbox" checked={form.tem_quintal} onChange={set("tem_quintal")}
-                className="h-4 w-4 rounded border-surface-border text-primary-600"
-              />
+              <input type="checkbox" checked={form.tem_quintal} onChange={set("tem_quintal")} className="h-4 w-4 rounded border-surface-border text-primary-600" />
               <span className="text-sm text-primary-800 dark:text-slate-300">Quintal</span>
             </label>
           </div>
@@ -559,32 +492,22 @@ export default function PublicarPage() {
 
         {/* Contact */}
         <div className="card p-5 space-y-4 dark:bg-dark-card dark:border-dark-border">
-          <h2 className="font-display text-base font-bold text-primary-900 dark:text-white">
-            Contacto
-          </h2>
+          <h2 className="font-display text-base font-bold text-primary-900 dark:text-white">Contacto</h2>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className="label">Telefone</label>
-              <input
-                type="tel" value={form.contacto_telefone} onChange={set("contacto_telefone")}
-                placeholder="+244 9XX XXX XXX" className="input"
-              />
+              <input type="tel" value={form.contacto_telefone} onChange={set("contacto_telefone")} placeholder="+244 9XX XXX XXX" className="input" />
             </div>
             <div>
               <label className="label">WhatsApp</label>
-              <input
-                type="tel" value={form.contacto_whatsapp} onChange={set("contacto_whatsapp")}
-                placeholder="+244 9XX XXX XXX" className="input"
-              />
+              <input type="tel" value={form.contacto_whatsapp} onChange={set("contacto_whatsapp")} placeholder="+244 9XX XXX XXX" className="input" />
             </div>
           </div>
         </div>
 
         {/* Images */}
         <div className="card p-5 space-y-4 dark:bg-dark-card dark:border-dark-border">
-          <h2 className="font-display text-base font-bold text-primary-900 dark:text-white">
-            Fotos
-          </h2>
+          <h2 className="font-display text-base font-bold text-primary-900 dark:text-white">Fotos</h2>
           <label
             className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 text-center transition-colors ${
               uploading
@@ -592,23 +515,14 @@ export default function PublicarPage() {
                 : "border-surface-border bg-surface-muted hover:border-primary-400 hover:bg-primary-50 dark:border-dark-border dark:bg-dark-surface dark:hover:border-primary-500 dark:hover:bg-primary-900/10"
             }`}
           >
-            <Upload
-              className={`mb-2 h-8 w-8 ${uploading ? "animate-pulse text-primary-500" : "text-primary-400"}`}
-            />
+            <Upload className={`mb-2 h-8 w-8 ${uploading ? "animate-pulse text-primary-500" : "text-primary-400"}`} />
             <span className="text-sm font-medium text-primary-700 dark:text-slate-300">
               {uploading ? "A fazer upload..." : "Clica para adicionar fotos"}
             </span>
             <span className="mt-1 text-xs text-primary-500 dark:text-slate-500">
               JPEG, PNG, WebP, GIF, BMP, HEIC, AVIF, TIFF · máx. 20 fotos · 50 MB cada
             </span>
-            <input
-              type="file"
-              accept={ACCEPTED_IMAGE_TYPES}
-              multiple
-              className="hidden"
-              onChange={handleImages}
-              disabled={uploading}
-            />
+            <input type="file" accept={ACCEPTED_IMAGE_TYPES} multiple className="hidden" onChange={handleImages} disabled={uploading} />
           </label>
 
           {uploadError && (
@@ -621,10 +535,7 @@ export default function PublicarPage() {
           {images.length > 0 && (
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
               {images.map((url) => (
-                <div
-                  key={url}
-                  className="relative aspect-square overflow-hidden rounded-xl bg-surface-muted dark:bg-dark-surface"
-                >
+                <div key={url} className="relative aspect-square overflow-hidden rounded-xl bg-surface-muted dark:bg-dark-surface">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={url} alt="" className="h-full w-full object-cover" />
                   <button
@@ -663,5 +574,20 @@ export default function PublicarPage() {
         </button>
       </form>
     </div>
+  );
+}
+
+// ── Page export — Suspense wraps the inner component that calls useSearchParams
+export default function PublicarPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary-400" />
+        </div>
+      }
+    >
+      <PublicarInner />
+    </Suspense>
   );
 }
