@@ -1,4 +1,4 @@
-"""Armazenamento de imagens/vídeos: S3/MinIO ou disco local (desenvolvimento)."""
+"""Armazenamento de imagens/vídeos: Supabase Storage (S3-compatible) ou disco local."""
 
 import logging
 import secrets
@@ -12,33 +12,62 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+# ── Supabase Storage S3-compatible endpoint ───────────────────────────────────
+# endpoint: https://<ref>.supabase.co/storage/v1/s3
+# region:   any string (Supabase ignores it, but boto3 requires one)
+# access_key: project ref  (the part before .supabase.co)
+# secret_key: service_role JWT
 
 def _get_s3_client():
-    if not all([settings.S3_BUCKET, settings.S3_ACCESS_KEY, settings.S3_SECRET_KEY]):
-        return None
-    return boto3.client(
-        "s3",
-        endpoint_url=settings.S3_ENDPOINT_URL,
-        aws_access_key_id=settings.S3_ACCESS_KEY,
-        aws_secret_access_key=settings.S3_SECRET_KEY,
-        region_name=settings.S3_REGION,
-    )
+    """Returns a boto3 S3 client configured for Supabase Storage.
+
+    Falls back to standard AWS S3 / MinIO when S3_ENDPOINT_URL is not a
+    Supabase URL.  Returns None when no S3 credentials are configured at all.
+    """
+    # Supabase path — detect via SUPABASE_URL env
+    if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_KEY and settings.SUPABASE_BUCKET:
+        ref = settings.SUPABASE_URL.rstrip("/").replace("https://", "").split(".")[0]
+        endpoint = f"https://{ref}.supabase.co/storage/v1/s3"
+        return boto3.client(
+            "s3",
+            endpoint_url=endpoint,
+            aws_access_key_id=ref,
+            aws_secret_access_key=settings.SUPABASE_SERVICE_KEY,
+            region_name="us-east-1",  # required by boto3, ignored by Supabase
+        )
+
+    # Generic S3 / MinIO fallback
+    if all([settings.S3_BUCKET, settings.S3_ACCESS_KEY, settings.S3_SECRET_KEY]):
+        return boto3.client(
+            "s3",
+            endpoint_url=settings.S3_ENDPOINT_URL or None,
+            aws_access_key_id=settings.S3_ACCESS_KEY,
+            aws_secret_access_key=settings.S3_SECRET_KEY,
+            region_name=settings.S3_REGION,
+        )
+
+    return None
 
 
+def _public_url(key: str) -> str:
+    """Build the public URL for an uploaded object."""
+    if settings.SUPABASE_URL and settings.SUPABASE_BUCKET:
+        ref = settings.SUPABASE_URL.rstrip("/").replace("https://", "").split(".")[0]
+        return f"https://{ref}.supabase.co/storage/v1/object/public/{settings.SUPABASE_BUCKET}/{key}"
+    if settings.S3_PUBLIC_URL_BASE:
+        return f"{settings.S3_PUBLIC_URL_BASE}/{key}"
+    if settings.S3_ENDPOINT_URL:
+        return f"{settings.S3_ENDPOINT_URL}/{settings.S3_BUCKET}/{key}"
+    return f"https://{settings.S3_BUCKET}.s3.{settings.S3_REGION}.amazonaws.com/{key}"
+
+
+# ── Validation ────────────────────────────────────────────────────────────────
 _IMAGE_MAGIC: dict[bytes, str] = {
     b"\xff\xd8\xff": "image/jpeg",
     b"\x89PNG\r\n\x1a\n": "image/png",
     b"RIFF": "image/webp",
 }
 _ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
-
-_VIDEO_MAGIC: dict[bytes, str] = {
-    b"\x00\x00\x00\x18ftyp": "video/mp4",
-    b"\x00\x00\x00\x1cftyp": "video/mp4",
-    b"\x00\x00\x00\x20ftyp": "video/mp4",
-    b"RIFF": "video/avi",
-    b"\x1aE\xdf\xa3": "video/webm",
-}
 _ALLOWED_VIDEO_EXTENSIONS = {".mp4", ".mov", ".webm"}
 
 
@@ -60,19 +89,16 @@ async def _validate_image(file: UploadFile) -> bytes:
         if ext not in _ALLOWED_IMAGE_EXTENSIONS:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Extensão de ficheiro não permitida. Use JPEG, PNG ou WebP.",
+                detail="Extensão não permitida. Use JPEG, PNG ou WebP.",
             )
-
     data = await file.read()
     await file.seek(0)
-
     max_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
     if len(data) > max_bytes:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail=f"Imagem maior que {settings.MAX_UPLOAD_SIZE_MB}MB.",
         )
-
     _validate_image_magic(data)
     return data
 
@@ -85,26 +111,20 @@ async def _validate_video(file: UploadFile) -> bytes:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Extensão de vídeo não permitida. Use MP4, MOV ou WebM.",
             )
-
     data = await file.read()
     await file.seek(0)
-
     max_bytes = settings.MAX_VIDEO_SIZE_MB * 1024 * 1024
     if len(data) > max_bytes:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail=f"Vídeo maior que {settings.MAX_VIDEO_SIZE_MB}MB.",
         )
-
-    # Validação leve — aceita se extensão é válida; magic bytes de vídeo variam muito por container
     return data
 
 
+# ── Main upload function ──────────────────────────────────────────────────────
 async def upload_media(file: UploadFile, entity_type: str, is_video: bool = False) -> str:
-    """Faz upload de imagem ou vídeo e devolve URL pública.
-
-    entity_type: "properties", "profile" — organiza chaves S3 / pastas locais.
-    """
+    """Upload image or video, return public URL."""
     data = await (_validate_video(file) if is_video else _validate_image(file))
 
     allowed_ext = _ALLOWED_VIDEO_EXTENSIONS if is_video else _ALLOWED_IMAGE_EXTENSIONS
@@ -118,29 +138,25 @@ async def upload_media(file: UploadFile, entity_type: str, is_video: bool = Fals
     key = f"{subfolder}/{unique_name}"
 
     s3_client = _get_s3_client()
+    bucket = settings.SUPABASE_BUCKET or settings.S3_BUCKET
 
-    if s3_client:
+    if s3_client and bucket:
         try:
             s3_client.put_object(
-                Bucket=settings.S3_BUCKET,
+                Bucket=bucket,
                 Key=key,
                 Body=data,
-                ContentType=file.content_type,
-                ACL="public-read",
+                ContentType=file.content_type or ("video/mp4" if is_video else "image/jpeg"),
             )
-            if settings.S3_PUBLIC_URL_BASE:
-                return f"{settings.S3_PUBLIC_URL_BASE}/{key}"
-            elif settings.S3_ENDPOINT_URL:
-                return f"{settings.S3_ENDPOINT_URL}/{settings.S3_BUCKET}/{key}"
-            else:
-                return f"https://{settings.S3_BUCKET}.s3.{settings.S3_REGION}.amazonaws.com/{key}"
+            return _public_url(key)
         except ClientError as exc:
-            logger.error("Erro S3 ao fazer upload: %s", exc)
+            logger.error("Erro S3/Supabase ao fazer upload: %s", exc)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Falha ao armazenar ficheiro.",
             ) from exc
     else:
+        # Local fallback (dev only — files lost on Render restart)
         upload_dir = Path(settings.LOCAL_UPLOAD_DIR) / subfolder
         upload_dir.mkdir(parents=True, exist_ok=True)
         file_path = upload_dir / unique_name
@@ -152,17 +168,25 @@ async def delete_media(url: str) -> bool:
     if not url:
         return False
     s3_client = _get_s3_client()
-    if s3_client:
+    bucket = settings.SUPABASE_BUCKET or settings.S3_BUCKET
+    if s3_client and bucket:
         try:
-            key = url.split(f"{settings.S3_BUCKET}/")[-1]
-            s3_client.delete_object(Bucket=settings.S3_BUCKET, Key=key)
+            # Extract key from URL
+            if settings.SUPABASE_URL and settings.SUPABASE_BUCKET:
+                marker = f"/object/public/{settings.SUPABASE_BUCKET}/"
+            else:
+                marker = f"{bucket}/"
+            key = url.split(marker)[-1]
+            s3_client.delete_object(Bucket=bucket, Key=key)
             return True
         except Exception as exc:
-            logger.error("Erro ao apagar ficheiro S3: %s", exc)
+            logger.error("Erro ao apagar ficheiro: %s", exc)
             return False
     else:
         try:
-            file_path = Path(settings.LOCAL_UPLOAD_DIR) / url.split(f"{settings.LOCAL_UPLOAD_PUBLIC_BASE}/")[-1]
+            file_path = Path(settings.LOCAL_UPLOAD_DIR) / url.split(
+                f"{settings.LOCAL_UPLOAD_PUBLIC_BASE}/"
+            )[-1]
             file_path.unlink(missing_ok=True)
             return True
         except Exception as exc:
