@@ -37,3 +37,10 @@ Thumbs.db
 
 # Alembic auto-gerado (manter apenas as versões)
 *.pyc
+
+# Frontend
+frontend/node_modules/
+frontend/.next/
+frontend/.env.local
+frontend/out/
+frontend/.vercel
