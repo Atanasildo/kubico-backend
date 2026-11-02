@@ -10,7 +10,9 @@ const nextConfig = {
       { protocol: "https", hostname: "*.amazonaws.com" },
       // Cloudflare R2
       { protocol: "https", hostname: "*.r2.cloudflarestorage.com" },
-      // Render backend (uploads served locally when no S3 configured)
+      // Supabase Storage
+      { protocol: "https", hostname: "*.supabase.co" },
+      // Render backend (local upload fallback in dev)
       ...(BACKEND_HOST
         ? [{ protocol: "https", hostname: BACKEND_HOST }]
         : []),
