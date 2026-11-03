@@ -66,6 +66,7 @@ class Settings(BaseSettings):
 
     # SMS
     SMS_API_KEY: str = ""
+    SMS_USERNAME: str = "sandbox"  # Africa's Talking username ("sandbox" para testes)
     SMS_SENDER_ID: str = "KUBICO"
 
     # ── Supabase Storage (preferido — grátis, sem cartão) ─────────────────────
