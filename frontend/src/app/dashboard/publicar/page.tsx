@@ -19,6 +19,35 @@ const TIPO_IMOVEL_OPTIONS: TipoImovel[] = [
 const ACCEPTED_IMAGE_TYPES =
   "image/jpeg,image/png,image/webp,image/gif,image/bmp,image/heic,image/heif,image/avif,image/tiff,.heic,.heif,.avif,.tiff,.tif,.bmp,.gif";
 
+// ── Contadores, Utilities, Acabamentos ───────────────────────────────────────
+const CONTADORES = [
+  { key: "quartos",       label: "Quartos",        icon: "🛏️" },
+  { key: "casas_banho",   label: "Casas de banho", icon: "🚿" },
+  { key: "cozinhas",      label: "Cozinhas",       icon: "🍳" },
+  { key: "salas",         label: "Salas",          icon: "🛋️" },
+  { key: "varandas",      label: "Varandas",       icon: "🌿" },
+  { key: "despensas",     label: "Despensas",      icon: "📦" },
+  { key: "garagens",      label: "Garagens",       icon: "🚗" },
+] as const;
+
+const UTILITIES = [
+  { key: "tem_energia",        label: "Energia eléctrica" },
+  { key: "tem_agua",           label: "Água canalizada"   },
+  { key: "tem_gerador",        label: "Gerador"           },
+  { key: "tem_fossa_septica",  label: "Fossa séptica"     },
+] as const;
+
+const ACABAMENTOS = [
+  { key: "mobilado",      label: "Mobilado"      },
+  { key: "tem_wc_servico",label: "WC de serviço" },
+  { key: "tem_seguranca", label: "Segurança 24h" },
+  { key: "tem_piscina",   label: "Piscina"       },
+  { key: "tem_elevador",  label: "Elevador"      },
+  { key: "tem_quintal",   label: "Quintal"       },
+] as const;
+
+type PisoTipo = "mosaico" | "cimento" | "madeira" | "outro";
+
 // ── GPS Picker ────────────────────────────────────────────────────────────────
 function GpsPicker({
   lat, lng,
@@ -93,27 +122,17 @@ function GpsPicker({
         <div>
           <label className="label">Latitude</label>
           <input
-            type="number"
-            step="0.000001"
-            min="-90"
-            max="90"
-            value={lat}
-            onChange={(e) => onChange(e.target.value, lng)}
-            placeholder="Ex: -8.838333"
-            className="input"
+            type="number" step="0.000001" min="-90" max="90"
+            value={lat} onChange={(e) => onChange(e.target.value, lng)}
+            placeholder="Ex: -8.838333" className="input"
           />
         </div>
         <div>
           <label className="label">Longitude</label>
           <input
-            type="number"
-            step="0.000001"
-            min="-180"
-            max="180"
-            value={lng}
-            onChange={(e) => onChange(lat, e.target.value)}
-            placeholder="Ex: 13.234444"
-            className="input"
+            type="number" step="0.000001" min="-180" max="180"
+            value={lng} onChange={(e) => onChange(lat, e.target.value)}
+            placeholder="Ex: 13.234444" className="input"
           />
         </div>
       </div>
@@ -133,13 +152,8 @@ function GpsPicker({
 
       <div className="overflow-hidden rounded-xl border border-surface-border dark:border-dark-border">
         <iframe
-          ref={iframeRef}
-          src={iframeSrc}
-          width="100%"
-          height="200"
-          className="block w-full"
-          style={{ border: 0 }}
-          loading="lazy"
+          ref={iframeRef} src={iframeSrc} width="100%" height="200"
+          className="block w-full" style={{ border: 0 }} loading="lazy"
           title="Pré-visualização do mapa"
         />
         <div className="border-t border-surface-border dark:border-dark-border bg-surface-muted dark:bg-dark-surface px-3 py-1.5 text-xs text-primary-500 dark:text-slate-500">
@@ -151,8 +165,7 @@ function GpsPicker({
 
       {hasCoords && (
         <button
-          type="button"
-          onClick={() => onChange("", "")}
+          type="button" onClick={() => onChange("", "")}
           className="text-xs text-primary-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
         >
           Remover coordenadas
@@ -162,7 +175,31 @@ function GpsPicker({
   );
 }
 
-// ── Inner component — uses useSearchParams, must be inside Suspense ───────────
+// ── Contador stepper ──────────────────────────────────────────────────────────
+function Stepper({ label, icon, value, onChange }: {
+  label: string; icon: string; value: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <div className="flex items-center gap-2 rounded-xl border border-surface-border dark:border-dark-border bg-white dark:bg-dark-card px-3 py-2.5">
+      <span className="text-base">{icon}</span>
+      <span className="flex-1 text-sm text-primary-800 dark:text-slate-200">{label}</span>
+      <div className="flex items-center gap-1">
+        <button type="button"
+          onClick={() => onChange(Math.max(0, value - 1))}
+          className="w-6 h-6 rounded-full bg-surface-muted dark:bg-dark-muted text-primary-700 dark:text-slate-300 flex items-center justify-center hover:bg-primary-100 dark:hover:bg-dark-elevated transition-colors text-sm font-bold"
+        >−</button>
+        <span className="w-6 text-center text-sm font-semibold text-primary-900 dark:text-white">{value}</span>
+        <button type="button"
+          onClick={() => onChange(value + 1)}
+          className="w-6 h-6 rounded-full bg-surface-muted dark:bg-dark-muted text-primary-700 dark:text-slate-300 flex items-center justify-center hover:bg-primary-100 dark:hover:bg-dark-elevated transition-colors text-sm font-bold"
+        >+</button>
+      </div>
+    </div>
+  );
+}
+
+// ── Form state ────────────────────────────────────────────────────────────────
 const EMPTY_FORM = {
   titulo: "",
   descricao: "",
@@ -177,29 +214,41 @@ const EMPTY_FORM = {
   latitude: "",
   longitude: "",
   area_m2: "",
-  quartos: "",
-  casas_banho: "",
-  mobilado: "",
-  tem_garagem: false,
-  tem_quintal: false,
-  tem_cozinha: false,
-  tem_sala: false,
-  tem_varanda: false,
-  tem_wc_servico: false,
-  tem_piscina: false,
-  tem_gerador: false,
+  andares: "",
+  // Contadores
+  quartos:     0,
+  casas_banho: 0,
+  cozinhas:    0,
+  salas:       0,
+  varandas:    0,
+  despensas:   0,
+  garagens:    0,
+  // Utilities
+  tem_energia:       false,
+  tem_agua:          false,
+  tem_gerador:       false,
+  tem_fossa_septica: false,
+  // Acabamentos
+  piso_tipo:     "outro" as PisoTipo,
+  mobilado:      false,
+  tem_wc_servico:false,
+  tem_piscina:   false,
   tem_seguranca: false,
-  tem_elevador: false,
+  tem_elevador:  false,
+  tem_quintal:   false,
+  // Contacto
   contacto_telefone: "",
   contacto_whatsapp: "",
 };
 
+// ── Inner component ───────────────────────────────────────────────────────────
 function PublicarInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const editId = searchParams.get("edit");
   const isEdit = Boolean(editId);
 
+  const { user, loading: authLoading } = useAuth();
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [images, setImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -213,34 +262,40 @@ function PublicarInner() {
     if (!editId) return;
     propertyApi.get(editId).then(({ data }) => {
       setForm({
-        titulo: data.titulo ?? "",
-        descricao: data.descricao ?? "",
-        tipo_negocio: data.tipo_negocio ?? "arrendamento",
-        tipo_imovel: data.tipo_imovel ?? "apartamento",
-        preco: data.preco != null ? String(data.preco) : "",
-        moeda: data.moeda ?? "AOA",
-        provincia: data.provincia ?? "Luanda",
-        municipio: data.municipio ?? "",
-        bairro: data.bairro ?? "",
-        endereco_referencia: data.endereco_referencia ?? "",
-        latitude: data.latitude != null ? String(data.latitude) : "",
-        longitude: data.longitude != null ? String(data.longitude) : "",
-        area_m2: data.area_m2 != null ? String(data.area_m2) : "",
-        quartos: data.quartos != null ? String(data.quartos) : "",
-        casas_banho: data.casas_banho != null ? String(data.casas_banho) : "",
-        mobilado: data.mobilado != null ? String(data.mobilado) : "",
-        tem_garagem: data.tem_garagem ?? false,
-        tem_quintal: data.tem_quintal ?? false,
-        tem_cozinha: data.tem_cozinha ?? false,
-        tem_sala: data.tem_sala ?? false,
-        tem_varanda: data.tem_varanda ?? false,
-        tem_wc_servico: data.tem_wc_servico ?? false,
-        tem_piscina: data.tem_piscina ?? false,
-        tem_gerador: data.tem_gerador ?? false,
-        tem_seguranca: data.tem_seguranca ?? false,
-        tem_elevador: data.tem_elevador ?? false,
-        contacto_telefone: data.contacto_telefone ?? "",
-        contacto_whatsapp: data.contacto_whatsapp ?? "",
+        titulo:               data.titulo ?? "",
+        descricao:            data.descricao ?? "",
+        tipo_negocio:         data.tipo_negocio ?? "arrendamento",
+        tipo_imovel:          data.tipo_imovel ?? "apartamento",
+        preco:                data.preco != null ? String(data.preco) : "",
+        moeda:                data.moeda ?? "AOA",
+        provincia:            data.provincia ?? "Luanda",
+        municipio:            data.municipio ?? "",
+        bairro:               data.bairro ?? "",
+        endereco_referencia:  data.endereco_referencia ?? "",
+        latitude:             data.latitude != null ? String(data.latitude) : "",
+        longitude:            data.longitude != null ? String(data.longitude) : "",
+        area_m2:              data.area_m2 != null ? String(data.area_m2) : "",
+        andares:              data.andares != null ? String(data.andares) : "",
+        quartos:              data.quartos ?? 0,
+        casas_banho:          data.casas_banho ?? 0,
+        cozinhas:             data.cozinhas ?? 0,
+        salas:                data.salas ?? 0,
+        varandas:             data.varandas ?? 0,
+        despensas:            data.despensas ?? 0,
+        garagens:             data.garagens ?? 0,
+        tem_energia:          data.tem_energia ?? false,
+        tem_agua:             data.tem_agua ?? false,
+        tem_gerador:          data.tem_gerador ?? false,
+        tem_fossa_septica:    data.tem_fossa_septica ?? false,
+        piso_tipo:            (data.piso_tipo as PisoTipo) ?? "outro",
+        mobilado:             data.mobilado ?? false,
+        tem_wc_servico:       data.tem_wc_servico ?? false,
+        tem_piscina:          data.tem_piscina ?? false,
+        tem_seguranca:        data.tem_seguranca ?? false,
+        tem_elevador:         data.tem_elevador ?? false,
+        tem_quintal:          data.tem_quintal ?? false,
+        contacto_telefone:    data.contacto_telefone ?? "",
+        contacto_whatsapp:    data.contacto_whatsapp ?? "",
       });
       setImages(Array.isArray(data.imagens) ? data.imagens : []);
     }).catch(() => {
@@ -253,16 +308,17 @@ function PublicarInner() {
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
       setForm((f) => ({
         ...f,
-        [k]:
-          e.target.type === "checkbox"
-            ? (e.target as HTMLInputElement).checked
-            : e.target.value,
+        [k]: e.target.type === "checkbox"
+          ? (e.target as HTMLInputElement).checked
+          : e.target.value,
       }));
+
+  const setNum = (k: string) => (v: number) =>
+    setForm((f) => ({ ...f, [k]: v }));
 
   const handleImages = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     if (!files.length) return;
-
     const ALLOWED_MIME = new Set([
       "image/jpeg","image/jpg","image/png","image/webp",
       "image/gif","image/bmp","image/tiff",
@@ -281,7 +337,6 @@ function PublicarInner() {
       e.target.value = "";
       return;
     }
-
     setUploadError("");
     setUploading(true);
     const urls: string[] = [];
@@ -306,19 +361,19 @@ function PublicarInner() {
     setError("");
     setSubmitting(true);
     try {
-      const payload: any = { ...form, preco: parseFloat(form.preco), imagens: images };
-      if (form.area_m2) payload.area_m2 = parseFloat(form.area_m2);
-      if (form.quartos) payload.quartos = parseInt(form.quartos);
-      if (form.casas_banho) payload.casas_banho = parseInt(form.casas_banho);
-      if (form.mobilado !== "") payload.mobilado = form.mobilado === "true";
-      else delete payload.mobilado;
-      if (form.latitude !== "") payload.latitude = parseFloat(form.latitude);
+      const payload: any = {
+        ...form,
+        preco: parseFloat(form.preco),
+        imagens: images,
+      };
+      if (form.area_m2)  payload.area_m2  = parseFloat(form.area_m2);
+      else delete payload.area_m2;
+      if (form.andares)  payload.andares  = parseInt(form.andares);
+      else delete payload.andares;
+      if (form.latitude  !== "") payload.latitude  = parseFloat(form.latitude);
       else delete payload.latitude;
       if (form.longitude !== "") payload.longitude = parseFloat(form.longitude);
       else delete payload.longitude;
-      ["area_m2","quartos","casas_banho"].forEach((k) => {
-        if (payload[k] === "" || payload[k] == null) delete payload[k];
-      });
 
       let resultId: string;
       if (isEdit && editId) {
@@ -342,7 +397,7 @@ function PublicarInner() {
     }
   };
 
-  if (loadingEdit) {
+  if (authLoading || loadingEdit) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary-400" />
@@ -379,6 +434,7 @@ function PublicarInner() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
+
         {/* Tipo */}
         <div className="card p-5 space-y-4 dark:bg-dark-card dark:border-dark-border">
           <h2 className="font-display text-base font-bold text-primary-900 dark:text-white">Tipo de anúncio</h2>
@@ -386,9 +442,7 @@ function PublicarInner() {
             <label className="label">Negócio</label>
             <div className="flex gap-2">
               {(["arrendamento","venda"] as TipoNegocio[]).map((t) => (
-                <button
-                  key={t}
-                  type="button"
+                <button key={t} type="button"
                   onClick={() => setForm((f) => ({ ...f, tipo_negocio: t }))}
                   className={`flex-1 rounded-xl border py-2.5 text-sm font-medium transition-colors ${
                     form.tipo_negocio === t
@@ -411,7 +465,7 @@ function PublicarInner() {
           </div>
         </div>
 
-        {/* Info */}
+        {/* Informações */}
         <div className="card p-5 space-y-4 dark:bg-dark-card dark:border-dark-border">
           <h2 className="font-display text-base font-bold text-primary-900 dark:text-white">Informações</h2>
           <div>
@@ -437,7 +491,7 @@ function PublicarInner() {
           </div>
         </div>
 
-        {/* Location */}
+        {/* Localização */}
         <div className="card p-5 space-y-4 dark:bg-dark-card dark:border-dark-border">
           <h2 className="font-display text-base font-bold text-primary-900 dark:text-white">Localização</h2>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -462,65 +516,99 @@ function PublicarInner() {
           </div>
           <div className="border-t border-surface-border dark:border-dark-border pt-4">
             <GpsPicker
-              lat={form.latitude}
-              lng={form.longitude}
+              lat={form.latitude} lng={form.longitude}
               onChange={(lat, lng) => setForm((f) => ({ ...f, latitude: lat, longitude: lng }))}
             />
           </div>
         </div>
 
-        {/* Details */}
-        <div className="card p-5 space-y-4 dark:bg-dark-card dark:border-dark-border">
+        {/* Detalhes */}
+        <div className="card p-5 space-y-5 dark:bg-dark-card dark:border-dark-border">
           <h2 className="font-display text-base font-bold text-primary-900 dark:text-white">Detalhes</h2>
-          <div className="grid gap-3 sm:grid-cols-3">
+
+          {/* Dimensões */}
+          <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className="label">Área (m²)</label>
               <input type="number" value={form.area_m2} onChange={set("area_m2")} placeholder="Ex: 120" min="0" className="input" />
             </div>
             <div>
-              <label className="label">Quartos</label>
-              <input type="number" value={form.quartos} onChange={set("quartos")} placeholder="Ex: 3" min="0" max="50" className="input" />
-            </div>
-            <div>
-              <label className="label">Casas de banho</label>
-              <input type="number" value={form.casas_banho} onChange={set("casas_banho")} placeholder="Ex: 2" min="0" max="50" className="input" />
+              <label className="label">Andar</label>
+              <input type="number" value={form.andares} onChange={set("andares")} placeholder="Ex: 3" min="0" max="200" className="input" />
             </div>
           </div>
+
+          {/* Divisões — steppers */}
           <div>
-            <label className="label">Mobiliado</label>
-            <select value={form.mobilado} onChange={set("mobilado")} className="input">
-              <option value="">Não indicado</option>
-              <option value="true">Sim</option>
-              <option value="false">Não</option>
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {([
-              ["tem_cozinha", "🍳 Cozinha"],
-              ["tem_sala", "🪑 Sala"],
-              ["tem_garagem", "🚗 Garagem"],
-              ["tem_quintal", "🌿 Quintal"],
-              ["tem_varanda", "🏠 Varanda"],
-              ["tem_wc_servico", "🚿 WC serviço"],
-              ["tem_piscina", "🏊 Piscina"],
-              ["tem_gerador", "⚡ Gerador"],
-              ["tem_seguranca", "🔒 Segurança 24h"],
-              ["tem_elevador", "🛗 Elevador"],
-            ] as [string, string][]).map(([key, label]) => (
-              <label key={key} className="flex cursor-pointer items-center gap-2 rounded-xl border border-surface-border dark:border-dark-border bg-white dark:bg-dark-card px-3 py-2.5 hover:bg-surface-muted dark:hover:bg-dark-elevated transition-colors">
-                <input
-                  type="checkbox"
-                  checked={!!(form as any)[key]}
-                  onChange={set(key as any)}
-                  className="h-4 w-4 rounded border-surface-border text-primary-600"
+            <p className="label mb-2">Divisões</p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {CONTADORES.map(({ key, label, icon }) => (
+                <Stepper
+                  key={key} label={label} icon={icon}
+                  value={(form as any)[key] as number}
+                  onChange={setNum(key)}
                 />
-                <span className="text-sm text-primary-800 dark:text-slate-300">{label}</span>
-              </label>
-            ))}
+              ))}
+            </div>
+          </div>
+
+          {/* Piso */}
+          <div>
+            <p className="label mb-2">Tipo de piso</p>
+            <div className="flex flex-wrap gap-2">
+              {(["mosaico","cimento","madeira","outro"] as PisoTipo[]).map((tipo) => (
+                <button key={tipo} type="button"
+                  onClick={() => setForm((f) => ({ ...f, piso_tipo: tipo }))}
+                  className={`px-4 py-2 rounded-full border text-sm capitalize transition-colors ${
+                    form.piso_tipo === tipo
+                      ? "border-primary-600 bg-primary-600 text-white"
+                      : "border-surface-border dark:border-dark-border text-primary-700 dark:text-slate-300 hover:bg-primary-50 dark:hover:bg-dark-elevated"
+                  }`}
+                >{tipo}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Utilities */}
+          <div>
+            <p className="label mb-2">Utilidades</p>
+            <div className="grid grid-cols-2 gap-2">
+              {UTILITIES.map(({ key, label }) => (
+                <label key={key}
+                  className="flex cursor-pointer items-center gap-2 rounded-xl border border-surface-border dark:border-dark-border bg-white dark:bg-dark-card px-3 py-2.5 hover:bg-surface-muted dark:hover:bg-dark-elevated transition-colors"
+                >
+                  <input type="checkbox"
+                    checked={!!(form as any)[key]}
+                    onChange={set(key)}
+                    className="h-4 w-4 rounded border-surface-border text-primary-600"
+                  />
+                  <span className="text-sm text-primary-800 dark:text-slate-300">{label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Acabamentos */}
+          <div>
+            <p className="label mb-2">Comodidades</p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {ACABAMENTOS.map(({ key, label }) => (
+                <label key={key}
+                  className="flex cursor-pointer items-center gap-2 rounded-xl border border-surface-border dark:border-dark-border bg-white dark:bg-dark-card px-3 py-2.5 hover:bg-surface-muted dark:hover:bg-dark-elevated transition-colors"
+                >
+                  <input type="checkbox"
+                    checked={!!(form as any)[key]}
+                    onChange={set(key)}
+                    className="h-4 w-4 rounded border-surface-border text-primary-600"
+                  />
+                  <span className="text-sm text-primary-800 dark:text-slate-300">{label}</span>
+                </label>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* Contact */}
+        {/* Contacto */}
         <div className="card p-5 space-y-4 dark:bg-dark-card dark:border-dark-border">
           <h2 className="font-display text-base font-bold text-primary-900 dark:text-white">Contacto</h2>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -535,7 +623,7 @@ function PublicarInner() {
           </div>
         </div>
 
-        {/* Images */}
+        {/* Fotos */}
         <div className="card p-5 space-y-4 dark:bg-dark-card dark:border-dark-border">
           <h2 className="font-display text-base font-bold text-primary-900 dark:text-white">Fotos</h2>
           <label
@@ -568,9 +656,7 @@ function PublicarInner() {
                 <div key={url} className="relative aspect-square overflow-hidden rounded-xl bg-surface-muted dark:bg-dark-surface">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={url} alt="" className="h-full w-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => removeImage(url)}
+                  <button type="button" onClick={() => removeImage(url)}
                     className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-white/90 dark:bg-dark-card/90 text-primary-700 dark:text-slate-300 shadow-sm hover:text-red-500"
                   >
                     <X className="h-3.5 w-3.5" />
@@ -588,9 +674,7 @@ function PublicarInner() {
           </div>
         )}
 
-        <button
-          type="submit"
-          disabled={submitting || uploading}
+        <button type="submit" disabled={submitting || uploading}
           className="btn-primary w-full justify-center py-3 text-base"
         >
           {submitting ? (
@@ -607,7 +691,7 @@ function PublicarInner() {
   );
 }
 
-// ── Page export — Suspense wraps the inner component that calls useSearchParams
+// ── Page export ───────────────────────────────────────────────────────────────
 export default function PublicarPage() {
   return (
     <Suspense

@@ -35,20 +35,31 @@ class PropertyBase(BaseModel):
     latitude: Decimal | None = Field(default=None, ge=-90, le=90)
     longitude: Decimal | None = Field(default=None, ge=-180, le=180)
     area_m2: Decimal | None = Field(default=None, gt=0)
-    quartos: int | None = Field(default=None, ge=0, le=50)
-    casas_banho: int | None = Field(default=None, ge=0, le=50)
-    mobilado: bool | None = None
-    tem_garagem: bool = False
-    tem_quintal: bool = False
-    tem_cozinha: bool = False
-    tem_sala: bool = False
-    tem_varanda: bool = False
-    tem_wc_servico: bool = False
-    tem_piscina: bool = False
-    tem_gerador: bool = False
-    tem_seguranca: bool = False
-    tem_elevador: bool = False
     andares: int | None = Field(default=None, ge=0, le=200)
+
+    # Contadores
+    quartos:     int = Field(default=0, ge=0, le=50)
+    casas_banho: int = Field(default=0, ge=0, le=50)
+    cozinhas:    int = Field(default=0, ge=0, le=20)
+    salas:       int = Field(default=0, ge=0, le=20)
+    varandas:    int = Field(default=0, ge=0, le=20)
+    despensas:   int = Field(default=0, ge=0, le=20)
+    garagens:    int = Field(default=0, ge=0, le=20)
+
+    # Utilities
+    tem_energia:       bool = False
+    tem_agua:          bool = False
+    tem_gerador:       bool = False
+    tem_fossa_septica: bool = False
+
+    # Acabamentos
+    piso_tipo:     str = Field(default="outro", pattern="^(mosaico|cimento|madeira|outro)$")
+    mobilado:      bool = False
+    tem_piscina:   bool = False
+    tem_seguranca: bool = False
+    tem_elevador:  bool = False
+    tem_quintal:   bool = False
+    tem_wc_servico:bool = False
     contacto_telefone: str | None = Field(default=None, max_length=30)
     contacto_whatsapp: str | None = Field(default=None, max_length=30)
 
@@ -84,20 +95,31 @@ class PropertyUpdate(BaseModel):
     bairro: str | None = Field(default=None, max_length=150)
     endereco_referencia: str | None = Field(default=None, max_length=300)
     area_m2: Decimal | None = Field(default=None, gt=0)
-    quartos: int | None = Field(default=None, ge=0, le=50)
-    casas_banho: int | None = Field(default=None, ge=0, le=50)
-    mobilado: bool | None = None
-    tem_garagem: bool | None = None
-    tem_quintal: bool | None = None
-    tem_cozinha: bool | None = None
-    tem_sala: bool | None = None
-    tem_varanda: bool | None = None
-    tem_wc_servico: bool | None = None
-    tem_piscina: bool | None = None
-    tem_gerador: bool | None = None
-    tem_seguranca: bool | None = None
-    tem_elevador: bool | None = None
     andares: int | None = Field(default=None, ge=0, le=200)
+
+    # Contadores
+    quartos:     int | None = Field(default=None, ge=0, le=50)
+    casas_banho: int | None = Field(default=None, ge=0, le=50)
+    cozinhas:    int | None = Field(default=None, ge=0, le=20)
+    salas:       int | None = Field(default=None, ge=0, le=20)
+    varandas:    int | None = Field(default=None, ge=0, le=20)
+    despensas:   int | None = Field(default=None, ge=0, le=20)
+    garagens:    int | None = Field(default=None, ge=0, le=20)
+
+    # Utilities
+    tem_energia:       bool | None = None
+    tem_agua:          bool | None = None
+    tem_gerador:       bool | None = None
+    tem_fossa_septica: bool | None = None
+
+    # Acabamentos
+    piso_tipo:     str | None = Field(default=None, pattern="^(mosaico|cimento|madeira|outro)$")
+    mobilado:      bool | None = None
+    tem_piscina:   bool | None = None
+    tem_seguranca: bool | None = None
+    tem_elevador:  bool | None = None
+    tem_quintal:   bool | None = None
+    tem_wc_servico:bool | None = None
     imagens: list[str] | None = Field(default=None, max_length=20)
     videos: list[str] | None = Field(default=None, max_length=3)
     contacto_telefone: str | None = Field(default=None, max_length=30)

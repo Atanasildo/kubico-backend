@@ -65,22 +65,33 @@ class Property(Base):
     latitude = Column(Numeric(10, 8), nullable=True)
     longitude = Column(Numeric(11, 8), nullable=True)
 
-    # Características
+    # Características — dimensões
     area_m2 = Column(Numeric(10, 2), nullable=True)
-    quartos = Column(Integer, nullable=True)
-    casas_banho = Column(Integer, nullable=True)
-    mobilado = Column(Boolean, nullable=True)
-    tem_garagem = Column(Boolean, default=False)
-    tem_quintal = Column(Boolean, default=False)
-    tem_cozinha = Column(Boolean, default=False)
-    tem_sala = Column(Boolean, default=False)
-    tem_varanda = Column(Boolean, default=False)
-    tem_wc_servico = Column(Boolean, default=False)  # WC de serviço separado
-    tem_piscina = Column(Boolean, default=False)
-    tem_gerador = Column(Boolean, default=False)
-    tem_seguranca = Column(Boolean, default=False)
-    tem_elevador = Column(Boolean, default=False)
     andares = Column(Integer, nullable=True)
+
+    # Contadores de divisões
+    quartos      = Column(Integer, default=0, nullable=False)
+    casas_banho  = Column(Integer, default=0, nullable=False)
+    cozinhas     = Column(Integer, default=0, nullable=False)
+    salas        = Column(Integer, default=0, nullable=False)
+    varandas     = Column(Integer, default=0, nullable=False)
+    despensas    = Column(Integer, default=0, nullable=False)
+    garagens     = Column(Integer, default=0, nullable=False)
+
+    # Utilities
+    tem_energia       = Column(Boolean, default=False, nullable=False)
+    tem_agua          = Column(Boolean, default=False, nullable=False)
+    tem_gerador       = Column(Boolean, default=False, nullable=False)
+    tem_fossa_septica = Column(Boolean, default=False, nullable=False)
+
+    # Acabamentos
+    piso_tipo    = Column(String(20), default="outro", nullable=False)  # mosaico|cimento|madeira|outro
+    mobilado     = Column(Boolean, default=False, nullable=False)
+    tem_piscina  = Column(Boolean, default=False, nullable=False)
+    tem_seguranca= Column(Boolean, default=False, nullable=False)
+    tem_elevador = Column(Boolean, default=False, nullable=False)
+    tem_quintal  = Column(Boolean, default=False, nullable=False)
+    tem_wc_servico = Column(Boolean, default=False, nullable=False)
 
     # Mídia
     imagens = Column(ARRAY(String), nullable=True, default=list)

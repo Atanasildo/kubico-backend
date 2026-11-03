@@ -67,23 +67,34 @@ export interface PropertyListItem {
   criado_em: string;
 }
 
+export type PisoTipo = "mosaico" | "cimento" | "madeira" | "outro";
+
 export interface Property extends PropertyListItem {
   descricao?: string;
   endereco_referencia?: string;
   latitude?: string;
   longitude?: string;
-  mobilado?: boolean;
-  tem_garagem: boolean;
-  tem_quintal: boolean;
-  tem_cozinha?: boolean;
-  tem_sala?: boolean;
-  tem_varanda?: boolean;
-  tem_wc_servico?: boolean;
-  tem_piscina?: boolean;
-  tem_gerador?: boolean;
-  tem_seguranca?: boolean;
-  tem_elevador?: boolean;
   andares?: number;
+  // Contadores
+  cozinhas:    number;
+  salas:       number;
+  varandas:    number;
+  despensas:   number;
+  garagens:    number;
+  // Utilities
+  tem_energia:       boolean;
+  tem_agua:          boolean;
+  tem_gerador:       boolean;
+  tem_fossa_septica: boolean;
+  // Acabamentos
+  piso_tipo:     PisoTipo;
+  mobilado:      boolean;
+  tem_wc_servico:boolean;
+  tem_piscina:   boolean;
+  tem_seguranca: boolean;
+  tem_elevador:  boolean;
+  tem_quintal:   boolean;
+  // Meta
   videos?: string[];
   contacto_telefone?: string;
   contacto_whatsapp?: string;

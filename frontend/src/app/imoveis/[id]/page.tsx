@@ -164,78 +164,112 @@ export default function PropertyDetailPage() {
           </div>
 
           {/* Characteristics */}
-          <div className="card p-5">
-            <h2 className="mb-4 font-display text-base font-bold text-primary-900 dark:text-slate-100">
+          <div className="card p-5 space-y-4">
+            <h2 className="font-display text-base font-bold text-primary-900 dark:text-slate-100">
               Características
             </h2>
 
-            {/* Contadores */}
-            <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {property.quartos != null && (
-                <div className="flex items-center gap-2 rounded-xl bg-surface-muted dark:bg-dark-elevated p-3">
-                  <Bed className="h-5 w-5 text-primary-600 dark:text-primary-400" />
-                  <div>
-                    <div className="text-sm font-semibold text-primary-900 dark:text-slate-100">{property.quartos}</div>
-                    <div className="text-xs text-primary-500 dark:text-slate-400">Quartos</div>
-                  </div>
-                </div>
-              )}
-              {property.casas_banho != null && (
-                <div className="flex items-center gap-2 rounded-xl bg-surface-muted dark:bg-dark-elevated p-3">
-                  <Bath className="h-5 w-5 text-primary-600 dark:text-primary-400" />
-                  <div>
-                    <div className="text-sm font-semibold text-primary-900 dark:text-slate-100">{property.casas_banho}</div>
-                    <div className="text-xs text-primary-500 dark:text-slate-400">Casas banho</div>
-                  </div>
-                </div>
-              )}
-              {property.area_m2 && (
-                <div className="flex items-center gap-2 rounded-xl bg-surface-muted dark:bg-dark-elevated p-3">
-                  <Maximize2 className="h-5 w-5 text-primary-600 dark:text-primary-400" />
-                  <div>
-                    <div className="text-sm font-semibold text-primary-900 dark:text-slate-100">{property.area_m2}m²</div>
-                    <div className="text-xs text-primary-500 dark:text-slate-400">Área</div>
-                  </div>
-                </div>
-              )}
-              {property.andares != null && (
-                <div className="flex items-center gap-2 rounded-xl bg-surface-muted dark:bg-dark-elevated p-3">
-                  <div className="flex h-5 w-5 items-center justify-center text-primary-600 dark:text-primary-400 font-bold text-xs">Nº</div>
-                  <div>
-                    <div className="text-sm font-semibold text-primary-900 dark:text-slate-100">{property.andares}º</div>
-                    <div className="text-xs text-primary-500 dark:text-slate-400">Andar</div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Comodidades booleanas */}
+            {/* Dimensões */}
             {(() => {
-              const features: { key: keyof typeof property; label: string; icon: React.ReactNode }[] = [
-                { key: "mobilado", label: property.mobilado ? "Mobilado" : "Sem mobília", icon: <span className="text-base">🛋️</span> },
-                { key: "tem_cozinha", label: "Cozinha", icon: <span className="text-base">🍳</span> },
-                { key: "tem_sala", label: "Sala", icon: <span className="text-base">🪑</span> },
-                { key: "tem_garagem", label: "Garagem", icon: <Car className="h-4 w-4" /> },
-                { key: "tem_quintal", label: "Quintal", icon: <Trees className="h-4 w-4" /> },
-                { key: "tem_varanda", label: "Varanda", icon: <span className="text-base">🏠</span> },
-                { key: "tem_wc_servico", label: "WC serviço", icon: <span className="text-base">🚿</span> },
-                { key: "tem_piscina", label: "Piscina", icon: <span className="text-base">🏊</span> },
-                { key: "tem_gerador", label: "Gerador", icon: <span className="text-base">⚡</span> },
-                { key: "tem_seguranca", label: "Segurança 24h", icon: <ShieldCheck className="h-4 w-4" /> },
-                { key: "tem_elevador", label: "Elevador", icon: <span className="text-base">🛗</span> },
-              ];
-              const active = features.filter(f => property[f.key]);
-              if (!active.length) return null;
-              return (
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {active.map(f => (
-                    <div key={String(f.key)} className="flex items-center gap-1.5 rounded-full border border-surface-border dark:border-dark-border bg-white dark:bg-dark-elevated px-3 py-1.5 text-xs font-medium text-primary-700 dark:text-slate-200">
-                      <span className="text-primary-500 dark:text-primary-400">{f.icon}</span>
-                      {f.label}
+              const dims = [
+                { value: property.area_m2 ? `${property.area_m2}m²` : null, label: "Área", icon: <Maximize2 className="h-5 w-5 text-primary-600 dark:text-primary-400" /> },
+                { value: property.andares != null ? `${property.andares}º` : null, label: "Andar", icon: <span className="text-base leading-none">🏢</span> },
+              ].filter(d => d.value);
+              return dims.length ? (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {dims.map(d => (
+                    <div key={d.label} className="flex items-center gap-2 rounded-xl bg-surface-muted dark:bg-dark-elevated p-3">
+                      {d.icon}
+                      <div>
+                        <div className="text-sm font-semibold text-primary-900 dark:text-slate-100">{d.value}</div>
+                        <div className="text-xs text-primary-500 dark:text-slate-400">{d.label}</div>
+                      </div>
                     </div>
                   ))}
                 </div>
-              );
+              ) : null;
+            })()}
+
+            {/* Divisões */}
+            {(() => {
+              const divisoes = [
+                { key: "quartos",     label: "Quartos",        icon: "🛏️" },
+                { key: "casas_banho", label: "Casas de banho", icon: "🚿" },
+                { key: "cozinhas",    label: "Cozinhas",       icon: "🍳" },
+                { key: "salas",       label: "Salas",          icon: "🛋️" },
+                { key: "varandas",    label: "Varandas",       icon: "🌿" },
+                { key: "despensas",   label: "Despensas",      icon: "📦" },
+                { key: "garagens",    label: "Garagens",       icon: "🚗" },
+              ].filter(d => (property as any)[d.key] > 0);
+              return divisoes.length ? (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {divisoes.map(d => (
+                    <div key={d.key} className="flex items-center gap-2 rounded-xl bg-surface-muted dark:bg-dark-elevated p-3">
+                      <span className="text-lg leading-none">{d.icon}</span>
+                      <div>
+                        <div className="text-sm font-semibold text-primary-900 dark:text-slate-100">{(property as any)[d.key]}</div>
+                        <div className="text-xs text-primary-500 dark:text-slate-400">{d.label}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null;
+            })()}
+
+            {/* Piso */}
+            {(property as any).piso_tipo && (property as any).piso_tipo !== "outro" && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-primary-500 dark:text-slate-400">Piso:</span>
+                <span className="px-3 py-1 rounded-full bg-surface-muted dark:bg-dark-elevated border border-surface-border dark:border-dark-border text-xs font-medium text-primary-700 dark:text-slate-300 capitalize">
+                  {(property as any).piso_tipo}
+                </span>
+              </div>
+            )}
+
+            {/* Utilities */}
+            {(() => {
+              const utils = [
+                { key: "tem_energia",      label: "Energia eléctrica" },
+                { key: "tem_agua",         label: "Água canalizada"   },
+                { key: "tem_gerador",      label: "Gerador"           },
+                { key: "tem_fossa_septica",label: "Fossa séptica"     },
+              ].filter(u => (property as any)[u.key]);
+              return utils.length ? (
+                <div>
+                  <p className="mb-2 text-xs font-semibold text-primary-500 dark:text-slate-400 uppercase tracking-wide">Utilidades</p>
+                  <div className="flex flex-wrap gap-2">
+                    {utils.map(u => (
+                      <div key={u.key} className="flex items-center gap-1.5 rounded-full border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 px-3 py-1.5 text-xs font-medium text-green-700 dark:text-green-400">
+                        <span>✓</span>{u.label}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null;
+            })()}
+
+            {/* Comodidades */}
+            {(() => {
+              const comods = [
+                { key: "mobilado",      label: "Mobilado",      icon: "🛋️" },
+                { key: "tem_wc_servico",label: "WC de serviço", icon: "🚿" },
+                { key: "tem_piscina",   label: "Piscina",       icon: "🏊" },
+                { key: "tem_seguranca", label: "Segurança 24h", icon: "🔒" },
+                { key: "tem_elevador",  label: "Elevador",      icon: "🛗" },
+                { key: "tem_quintal",   label: "Quintal",       icon: "🌳" },
+              ].filter(c => (property as any)[c.key]);
+              return comods.length ? (
+                <div>
+                  <p className="mb-2 text-xs font-semibold text-primary-500 dark:text-slate-400 uppercase tracking-wide">Comodidades</p>
+                  <div className="flex flex-wrap gap-2">
+                    {comods.map(c => (
+                      <div key={c.key} className="flex items-center gap-1.5 rounded-full border border-surface-border dark:border-dark-border bg-white dark:bg-dark-elevated px-3 py-1.5 text-xs font-medium text-primary-700 dark:text-slate-200">
+                        <span>{c.icon}</span>{c.label}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null;
             })()}
           </div>
 
