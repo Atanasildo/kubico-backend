@@ -27,9 +27,11 @@ from app.api.routes import (
 from app.core.config import settings
 from app.core.database import Base, engine
 
-# Cria tabelas apenas em desenvolvimento — produção usa Alembic
-if settings.ENVIRONMENT == "development":
-    Base.metadata.create_all(bind=engine)
+# create_all é seguro para tabelas que ainda não existem (não destrói dados).
+# Necessário para criar refresh_tokens em produção sem migração manual.
+# Quando tiveres acesso ao shell do Render e correres `alembic upgrade head`,
+# podes voltar a condicionar isto a ENVIRONMENT == "development".
+Base.metadata.create_all(bind=engine)
 
 # ── Aviso de segurança em startup ────────────────────────────────────────────
 _sec_logger = _startup_log.getLogger("kubico.security")
