@@ -102,7 +102,6 @@ def run():
                 print(f"  skipped index: {e}", file=sys.stderr)
 
         # ── 4. payments table — patch missing columns if table already exists ─
-        # The table may have been created without gateway_ref / dias_destaque
         payment_migrations = [
             "ALTER TABLE payments ADD COLUMN IF NOT EXISTS entidade VARCHAR(10)",
             "ALTER TABLE payments ADD COLUMN IF NOT EXISTS referencia VARCHAR(20)",
@@ -118,18 +117,16 @@ def run():
             except Exception as e:
                 print(f"  skipped payments: {sql[:60]}... ({e})", file=sys.stderr)
 
-        # ── 5. properties table — patch any missing columns ───────────────────
+        # ── 5. properties table ───────────────────────────────────────────────
         property_migrations = [
+            # base
             "ALTER TABLE properties ADD COLUMN IF NOT EXISTS bairro VARCHAR(150)",
             "ALTER TABLE properties ADD COLUMN IF NOT EXISTS endereco_referencia VARCHAR(300)",
             "ALTER TABLE properties ADD COLUMN IF NOT EXISTS latitude NUMERIC(10,8)",
             "ALTER TABLE properties ADD COLUMN IF NOT EXISTS longitude NUMERIC(11,8)",
             "ALTER TABLE properties ADD COLUMN IF NOT EXISTS area_m2 NUMERIC(10,2)",
-            "ALTER TABLE properties ADD COLUMN IF NOT EXISTS quartos INTEGER",
-            "ALTER TABLE properties ADD COLUMN IF NOT EXISTS casas_banho INTEGER",
-            "ALTER TABLE properties ADD COLUMN IF NOT EXISTS mobilado BOOLEAN",
-            "ALTER TABLE properties ADD COLUMN IF NOT EXISTS tem_garagem BOOLEAN DEFAULT FALSE",
-            "ALTER TABLE properties ADD COLUMN IF NOT EXISTS tem_quintal BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE properties ADD COLUMN IF NOT EXISTS quartos INTEGER DEFAULT 0",
+            "ALTER TABLE properties ADD COLUMN IF NOT EXISTS casas_banho INTEGER DEFAULT 0",
             "ALTER TABLE properties ADD COLUMN IF NOT EXISTS andares INTEGER",
             "ALTER TABLE properties ADD COLUMN IF NOT EXISTS videos TEXT[]",
             "ALTER TABLE properties ADD COLUMN IF NOT EXISTS contacto_telefone VARCHAR(30)",
@@ -141,6 +138,25 @@ def run():
             "ALTER TABLE properties ADD COLUMN IF NOT EXISTS destaque_ate TIMESTAMPTZ",
             "ALTER TABLE properties ADD COLUMN IF NOT EXISTS visualizacoes INTEGER DEFAULT 0 NOT NULL",
             "ALTER TABLE properties ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMPTZ",
+            # contadores v2
+            "ALTER TABLE properties ADD COLUMN IF NOT EXISTS cozinhas INTEGER DEFAULT 0 NOT NULL",
+            "ALTER TABLE properties ADD COLUMN IF NOT EXISTS salas INTEGER DEFAULT 0 NOT NULL",
+            "ALTER TABLE properties ADD COLUMN IF NOT EXISTS varandas INTEGER DEFAULT 0 NOT NULL",
+            "ALTER TABLE properties ADD COLUMN IF NOT EXISTS despensas INTEGER DEFAULT 0 NOT NULL",
+            "ALTER TABLE properties ADD COLUMN IF NOT EXISTS garagens INTEGER DEFAULT 0 NOT NULL",
+            # utilities
+            "ALTER TABLE properties ADD COLUMN IF NOT EXISTS tem_energia BOOLEAN DEFAULT FALSE NOT NULL",
+            "ALTER TABLE properties ADD COLUMN IF NOT EXISTS tem_agua BOOLEAN DEFAULT FALSE NOT NULL",
+            "ALTER TABLE properties ADD COLUMN IF NOT EXISTS tem_gerador BOOLEAN DEFAULT FALSE NOT NULL",
+            "ALTER TABLE properties ADD COLUMN IF NOT EXISTS tem_fossa_septica BOOLEAN DEFAULT FALSE NOT NULL",
+            # acabamentos
+            "ALTER TABLE properties ADD COLUMN IF NOT EXISTS piso_tipo VARCHAR(20) DEFAULT 'outro' NOT NULL",
+            "ALTER TABLE properties ADD COLUMN IF NOT EXISTS mobilado BOOLEAN DEFAULT FALSE NOT NULL",
+            "ALTER TABLE properties ADD COLUMN IF NOT EXISTS tem_piscina BOOLEAN DEFAULT FALSE NOT NULL",
+            "ALTER TABLE properties ADD COLUMN IF NOT EXISTS tem_seguranca BOOLEAN DEFAULT FALSE NOT NULL",
+            "ALTER TABLE properties ADD COLUMN IF NOT EXISTS tem_elevador BOOLEAN DEFAULT FALSE NOT NULL",
+            "ALTER TABLE properties ADD COLUMN IF NOT EXISTS tem_quintal BOOLEAN DEFAULT FALSE NOT NULL",
+            "ALTER TABLE properties ADD COLUMN IF NOT EXISTS tem_wc_servico BOOLEAN DEFAULT FALSE NOT NULL",
         ]
         for sql in property_migrations:
             try:
