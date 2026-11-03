@@ -124,9 +124,12 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "Permissions-Policy",
             "geolocation=(), camera=(), microphone=(), payment=()",
         )
-        # Remover header que revela tecnologia
-        response.headers.pop("server", None)
-        response.headers.pop("x-powered-by", None)
+        # Remover headers que revelam tecnologia
+        for _h in ("server", "x-powered-by"):
+            try:
+                del response.headers[_h]
+            except KeyError:
+                pass
         # X-XSS-Protection obsoleto em browsers modernos — omitir
         return response
 
