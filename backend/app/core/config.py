@@ -66,8 +66,8 @@ class Settings(BaseSettings):
 
     # SMS
     SMS_API_KEY: str = "atsk_e619c6027d2823a87b5f1a8165bb77f2082acf288448bc1101af731ae842678294943f19"
-    SMS_USERNAME: str = "sandbox"  # Africa's Talking username ("sandbox" para testes)
-    SMS_SENDER_ID: str = "KUBICO"
+    SMS_USERNAME: str = "sandbox"
+    SMS_SENDER_ID: str = ""  # sandbox: deixar vazio (alphanumeric não está registado)
 
     # ── Supabase Storage (preferido — grátis, sem cartão) ─────────────────────
     # SUPABASE_URL        → https://<ref>.supabase.co
