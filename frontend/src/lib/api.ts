@@ -97,7 +97,7 @@ export const propertyApi = {
     api.get("/properties/", { params }),
   get: (id: string) => api.get(`/properties/${id}`),
   create: (data: unknown) => api.post("/properties/", data),
-  update: (id: string, data: unknown) => api.patch(`/properties/${id}`, data),
+  update: (id: string, data: unknown) => api.put(`/properties/${id}`, data),
   delete: (id: string) => api.delete(`/properties/${id}`),
   mine: () => api.get("/properties/me"),
   analytics: (id: string) => api.get(`/properties/${id}/analytics`),
@@ -172,3 +172,4 @@ export const verificationApi = {
   verifyCode: (canal: "email" | "telefone", destino: string, codigo: string) =>
     api.post("/verification/verify-code", { canal, destino, codigo }),
 };
+
