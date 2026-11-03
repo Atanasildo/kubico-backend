@@ -156,6 +156,7 @@ class PropertyRead(PropertyBase):
     videos: list[str] | None = None
     status: PropertyStatus
     verificado: bool
+    aparece_no_feed: bool = True
     destaque_ate: datetime | None = None
     visualizacoes: int
     criado_em: datetime
@@ -186,5 +187,6 @@ class PropertyListItem(BaseModel):
     imagens: list[str] | None = None
     status: PropertyStatus
     verificado: bool
+    aparece_no_feed: bool = True
     destaque_ate: datetime | None = None
     criado_em: datetime

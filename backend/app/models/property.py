@@ -106,6 +106,7 @@ class Property(Base):
     # Moderação / confiança
     verificado = Column(Boolean, default=False, nullable=False)  # equipa foi ao local
     aprovado = Column(Boolean, default=True, nullable=False)
+    aparece_no_feed = Column(Boolean, default=True, nullable=False)
     flagged = Column(Boolean, default=False, nullable=False)
     flag_reason = Column(String(500), nullable=True)
 

@@ -19,15 +19,17 @@ from app.crud.property import (
     search_properties,
     update_property,
 )
-from app.models.property import TipoImovel, TipoNegocio
+from app.models.property import Property, PropertyStatus, TipoImovel, TipoNegocio
 from app.models.user import User, UserRole
 from app.schemas.interaction import PropertyAnalytics
 from app.schemas.property import PropertyCreate, PropertyListItem, PropertyRead, PropertyUpdate
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/properties", tags=["Imóveis"])
 
 # Particulares sem plano agente: limite de anúncios activos simultâneos
 _LIMITE_ANUNCIOS_PARTICULAR = 2
+_LIMITE_ANUNCIOS_FEED_PARTICULAR = 3   # máximo de anúncios no feed girassol (free)
 
 
 @router.post("/", response_model=PropertyRead, status_code=status.HTTP_201_CREATED)
@@ -51,7 +53,27 @@ def publish_property(
                     "Subscreva o plano agente para anúncios ilimitados."
                 ),
             )
-    return create_property(db, prop_in, autor_id=current_user.id)
+    imovel = create_property(db, prop_in, autor_id=current_user.id)
+
+    # Lógica de visibilidade no feed para utilizadores free
+    from app.models.user import UserRole
+    from sqlalchemy import func as sqlfunc
+    if current_user.role == UserRole.PARTICULAR:
+        count_feed = (
+            db.query(sqlfunc.count(Property.id))
+            .filter(
+                Property.autor_id == current_user.id,
+                Property.aparece_no_feed == True,  # noqa: E712
+                Property.status == PropertyStatus.ATIVO,
+            )
+            .scalar()
+        ) or 0
+        if count_feed > _LIMITE_ANUNCIOS_FEED_PARTICULAR:
+            imovel.aparece_no_feed = False
+            db.commit()
+            db.refresh(imovel)
+
+    return imovel
 
 
 @router.get("/", response_model=list[PropertyListItem])
@@ -165,3 +187,27 @@ def property_analytics(
         total_leads=len(leads),
         leads_por_canal=leads_por_canal,
     )
+
+
+class PropertyStatusUpdate(BaseModel):
+    status: PropertyStatus
+
+
+@router.patch("/{property_id}/status", response_model=PropertyRead)
+async def atualizar_status_imovel(
+    property_id: uuid.UUID,
+    body: PropertyStatusUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Dono do anúncio marca como disponível, arrendado, vendido ou suspenso."""
+    imovel = db.query(Property).filter(Property.id == property_id).first()
+    if not imovel:
+        raise HTTPException(status_code=404, detail="Imóvel não encontrado.")
+    if imovel.autor_id != current_user.id and current_user.role.value != "admin":
+        raise HTTPException(status_code=403, detail="Sem permissão.")
+
+    imovel.status = body.status
+    db.commit()
+    db.refresh(imovel)
+    return imovel

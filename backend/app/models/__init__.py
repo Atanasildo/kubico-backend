@@ -7,3 +7,4 @@ from app.models.report import PropertyReport  # noqa: F401
 from app.models.search_alert import SearchAlert  # noqa: F401
 from app.models.user import User  # noqa: F401
 from app.models.verification import VerificationCode  # noqa: F401
+from app.models.password_reset import PasswordResetToken  # noqa: F401

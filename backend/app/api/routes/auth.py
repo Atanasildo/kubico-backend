@@ -1,4 +1,8 @@
+import hashlib
+import secrets
 import uuid
+
+from pydantic import BaseModel, Field
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -25,8 +29,10 @@ from app.crud.user import (
     get_user_by_id,
     get_user_by_phone,
 )
+from app.models.password_reset import PasswordResetToken
 from app.models.refresh_token import RefreshToken
 from app.models.user import User
+from app.core.email import send_email, html_reset_senha
 from app.schemas.token import Token
 from app.schemas.user import ChangePasswordRequest, UserCreate, UserLogin, UserRead
 
@@ -167,3 +173,92 @@ def change_password(
     ).update({"usado": True})
     db.commit()
     return {"detail": "Senha alterada com sucesso. Todas as sessões foram encerradas."}
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    nova_senha: str = Field(min_length=8)
+
+
+@router.post("/forgot-password", status_code=status.HTTP_202_ACCEPTED)
+@limiter.limit("3/hour")
+async def forgot_password(
+    request: Request,
+    body: ForgotPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    """Envia email de recuperação de senha. Sempre devolve 202 para não revelar se o email existe."""
+    from datetime import datetime, timedelta, timezone
+
+    user = get_user_by_email(db, body.email)
+    _msg = {"message": "Se o email existir, receberá instruções em breve."}
+    if not user or not user.ativo:
+        return _msg
+
+    # Remove tokens antigos não usados deste utilizador
+    db.query(PasswordResetToken).filter(
+        PasswordResetToken.user_id == user.id,
+        PasswordResetToken.usado == False,  # noqa: E712
+    ).delete(synchronize_session=False)
+
+    raw_token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+    expira_em = datetime.now(timezone.utc) + timedelta(minutes=30)
+
+    db_token = PasswordResetToken(
+        user_id=user.id,
+        token_hash=token_hash,
+        expira_em=expira_em,
+    )
+    db.add(db_token)
+    db.commit()
+
+    frontend_url = settings.FRONTEND_URL.rstrip("/")
+    link = f"{frontend_url}/auth/reset-password?token={raw_token}"
+    send_email(user.email, "Recuperação de senha — Kubico", html_reset_senha(link))
+
+    return _msg
+
+
+@router.post("/reset-password", status_code=status.HTTP_200_OK)
+@limiter.limit("5/hour")
+async def reset_password(
+    request: Request,
+    body: ResetPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    """Valida o token e redefine a senha."""
+    from datetime import datetime, timezone
+
+    token_hash = hashlib.sha256(body.token.encode()).hexdigest()
+    now = datetime.now(timezone.utc)
+
+    db_token = (
+        db.query(PasswordResetToken)
+        .filter(
+            PasswordResetToken.token_hash == token_hash,
+            PasswordResetToken.usado == False,  # noqa: E712
+            PasswordResetToken.expira_em > now,
+        )
+        .first()
+    )
+    if not db_token:
+        raise HTTPException(status_code=400, detail="Token inválido ou expirado.")
+
+    user = get_user_by_id(db, db_token.user_id)
+    if not user:
+        raise HTTPException(status_code=400, detail="Token inválido.")
+
+    user.hashed_password = hash_password(body.nova_senha)
+    db_token.usado = True
+    # Invalida todos os refresh tokens activos deste utilizador
+    db.query(RefreshToken).filter(RefreshToken.user_id == user.id).delete(
+        synchronize_session=False
+    )
+    db.commit()
+
+    return {"message": "Senha alterada com sucesso."}

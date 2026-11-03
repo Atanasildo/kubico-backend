@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.core.database import get_db
+from app.core.email import send_email, html_verificacao_email
 from app.crud.verification import generate_and_store_code, verify_code
 from app.models.user import User
 from app.models.verification import VerificationChannel
@@ -41,12 +42,14 @@ def request_code(
 
     codigo = generate_and_store_code(db, current_user.id, payload.canal, destino)
 
-    # TODO em produção: enviar email via SMTP ou SMS via gateway
-    # Por agora, devolve o código directamente (apenas em dev)
-    return {
-        "detail": f"Código enviado para {destino}.",
-        "codigo_dev": codigo,  # remover em produção
-    }
+    if payload.canal == VerificationChannel.EMAIL:
+        send_email(
+            current_user.email,
+            "Código de verificação — Kubico",
+            html_verificacao_email(codigo),
+        )
+
+    return {"message": "Código enviado para o email."}
 
 
 @router.post("/verify-code", status_code=status.HTTP_200_OK)

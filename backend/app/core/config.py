@@ -25,6 +25,7 @@ class Settings(BaseSettings):
 
     # CORS
     ALLOWED_ORIGINS: str = "http://localhost:3000"
+    FRONTEND_URL: str = "https://kubico.vercel.app"
 
     # Admin
     ADMIN_SETUP_KEY: str = "troque-esta-chave-admin-no-env"

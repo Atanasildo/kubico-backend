@@ -5,7 +5,7 @@ Safe to run multiple times — uses IF NOT EXISTS / ADD COLUMN IF NOT EXISTS thr
 import sys
 from sqlalchemy import text
 from app.core.database import engine, Base
-from app.models import user, property, favorite, payment, lead, report, verification, search_alert  # noqa: F401
+from app.models import user, property, favorite, payment, lead, report, verification, search_alert, password_reset  # noqa: F401
 
 
 def run():
@@ -131,6 +131,7 @@ def run():
             "ALTER TABLE properties ADD COLUMN IF NOT EXISTS videos TEXT[]",
             "ALTER TABLE properties ADD COLUMN IF NOT EXISTS contacto_telefone VARCHAR(30)",
             "ALTER TABLE properties ADD COLUMN IF NOT EXISTS contacto_whatsapp VARCHAR(30)",
+            "ALTER TABLE properties ADD COLUMN IF NOT EXISTS aparece_no_feed BOOLEAN NOT NULL DEFAULT TRUE",
             "ALTER TABLE properties ADD COLUMN IF NOT EXISTS verificado BOOLEAN DEFAULT FALSE NOT NULL",
             "ALTER TABLE properties ADD COLUMN IF NOT EXISTS aprovado BOOLEAN DEFAULT TRUE NOT NULL",
             "ALTER TABLE properties ADD COLUMN IF NOT EXISTS flagged BOOLEAN DEFAULT FALSE NOT NULL",
@@ -164,7 +165,26 @@ def run():
             except Exception as e:
                 print(f"  skipped properties: {sql[:60]}... ({e})", file=sys.stderr)
 
-    # ── 6. Create all tables that don't exist yet (skips existing ones) ───────
+    # ── 6. password_reset_tokens table ───────────────────────────────────────
+    with engine.begin() as conn:
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS password_reset_tokens (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                token_hash VARCHAR(64) UNIQUE NOT NULL,
+                usado BOOLEAN NOT NULL DEFAULT FALSE,
+                expira_em TIMESTAMPTZ NOT NULL,
+                criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        """))
+        conn.execute(text("""
+            CREATE INDEX IF NOT EXISTS idx_prt_user_id ON password_reset_tokens(user_id)
+        """))
+        conn.execute(text("""
+            CREATE INDEX IF NOT EXISTS idx_prt_token_hash ON password_reset_tokens(token_hash)
+        """))
+
+    # ── 7. Create all tables that don't exist yet (skips existing ones) ───────
     Base.metadata.create_all(bind=engine)
     print("Kubico migration complete.")
 
