@@ -114,7 +114,6 @@ def refresh_token(token: str, db: Session = Depends(get_db)):
     if payload is None or payload.get("type") != "refresh":
         raise HTTPException(status_code=401, detail="Refresh token inválido ou expirado.")
 
-    # Verificar se token está na DB e não foi usado
     h = hash_token(token)
     db_token = db.query(RefreshToken).filter(
         RefreshToken.token_hash == h,
@@ -132,11 +131,9 @@ def refresh_token(token: str, db: Session = Depends(get_db)):
     if not user or not user.ativo:
         raise HTTPException(status_code=401, detail="Utilizador não encontrado.")
 
-    # Invalidar o token actual (rotação)
     db_token.usado = True
     db.commit()
 
-    # Emitir novo par
     access = create_access_token(str(user.id))
     refresh = create_refresh_token(str(user.id))
     _store_refresh_token(db, user.id, refresh)
@@ -146,8 +143,7 @@ def refresh_token(token: str, db: Session = Depends(get_db)):
 @router.post("/logout", status_code=200)
 def logout(token: str, db: Session = Depends(get_db)):
     """Invalida o refresh token — impede renovação de sessão."""
-    revoked = _revoke_refresh_token(db, token)
-    # Resposta idêntica independentemente de o token existir (não vazar estado)
+    _revoke_refresh_token(db, token)
     return {"detail": "Sessão terminada."}
 
 
@@ -166,7 +162,6 @@ def change_password(
         raise HTTPException(status_code=400, detail="Senha atual incorreta.")
     current_user.hashed_password = hash_password(payload.senha_nova)
     db.add(current_user)
-    # Invalidar todos os refresh tokens activos do utilizador ao mudar senha
     db.query(RefreshToken).filter(
         RefreshToken.user_id == current_user.id,
         RefreshToken.usado == False,  # noqa: E712
@@ -174,6 +169,8 @@ def change_password(
     db.commit()
     return {"detail": "Senha alterada com sucesso. Todas as sessões foram encerradas."}
 
+
+# ── Recuperação de senha por EMAIL ───────────────────────────────────────────
 
 class ForgotPasswordRequest(BaseModel):
     email: str
@@ -191,15 +188,12 @@ async def forgot_password(
     body: ForgotPasswordRequest,
     db: Session = Depends(get_db),
 ):
-    """Envia email de recuperação de senha. Sempre devolve 202 para não revelar se o email existe."""
-    from datetime import datetime, timedelta, timezone
-
+    """Envia email de recuperação. Sempre devolve 202 para não revelar se o email existe."""
     user = get_user_by_email(db, body.email)
     _msg = {"message": "Se o email existir, receberá instruções em breve."}
     if not user or not user.ativo:
         return _msg
 
-    # Remove tokens antigos não usados deste utilizador
     db.query(PasswordResetToken).filter(
         PasswordResetToken.user_id == user.id,
         PasswordResetToken.usado == False,  # noqa: E712
@@ -219,7 +213,10 @@ async def forgot_password(
 
     frontend_url = settings.FRONTEND_URL.rstrip("/")
     link = f"{frontend_url}/auth/reset-password?token={raw_token}"
-    send_email(user.email, "Recuperação de senha — Kubico", html_reset_senha(link))
+    enviado = send_email(user.email, "Recuperação de senha — Kubico", html_reset_senha(link))
+    if not enviado:
+        # Não revelar ao cliente, mas registar internamente
+        print(f"[WARN forgot-password] SMTP não configurado — link não enviado para {user.email}")
 
     return _msg
 
@@ -232,8 +229,6 @@ async def reset_password(
     db: Session = Depends(get_db),
 ):
     """Valida o token e redefine a senha."""
-    from datetime import datetime, timezone
-
     token_hash = hashlib.sha256(body.token.encode()).hexdigest()
     now = datetime.now(timezone.utc)
 
@@ -255,10 +250,77 @@ async def reset_password(
 
     user.hashed_password = hash_password(body.nova_senha)
     db_token.usado = True
-    # Invalida todos os refresh tokens activos deste utilizador
     db.query(RefreshToken).filter(RefreshToken.user_id == user.id).delete(
         synchronize_session=False
     )
     db.commit()
 
+    return {"message": "Senha alterada com sucesso."}
+
+
+# ── Recuperação de senha por TELEFONE (OTP) ──────────────────────────────────
+
+class ForgotPasswordPhoneRequest(BaseModel):
+    telefone: str
+
+
+class ResetPasswordPhoneRequest(BaseModel):
+    telefone: str
+    codigo: str
+    nova_senha: str = Field(min_length=8)
+
+
+@router.post("/forgot-password-phone", status_code=status.HTTP_202_ACCEPTED)
+@limiter.limit("3/hour")
+async def forgot_password_phone(
+    request: Request,
+    body: ForgotPasswordPhoneRequest,
+    db: Session = Depends(get_db),
+):
+    """Envia OTP via SMS para recuperar senha. Sempre devolve 202."""
+    from app.crud.verification import generate_and_store_code
+    from app.models.verification import VerificationChannel
+    from app.utils.sms import send_sms
+
+    _msg = {"message": "Se o número existir, receberá um código em breve."}
+    user = get_user_by_phone(db, body.telefone)
+    if not user or not user.ativo:
+        return _msg
+
+    try:
+        codigo = generate_and_store_code(
+            db, user.id, VerificationChannel.TELEFONE, body.telefone
+        )
+    except HTTPException:
+        # rate-limit do OTP — não revelar
+        return _msg
+
+    mensagem = f"Kubico: o teu código de recuperação de senha é {codigo}. Válido por 10 minutos."
+    send_sms(body.telefone, mensagem)
+    return _msg
+
+
+@router.post("/reset-password-phone", status_code=status.HTTP_200_OK)
+@limiter.limit("5/hour")
+async def reset_password_phone(
+    request: Request,
+    body: ResetPasswordPhoneRequest,
+    db: Session = Depends(get_db),
+):
+    """Valida OTP de telefone e redefine a senha."""
+    from app.crud.verification import verify_code
+    from app.models.verification import VerificationChannel
+
+    user = get_user_by_phone(db, body.telefone)
+    if not user or not user.ativo:
+        raise HTTPException(status_code=400, detail="Código inválido ou expirado.")
+
+    # verify_code lança HTTPException se falhar
+    verify_code(db, user.id, VerificationChannel.TELEFONE, body.codigo)
+
+    user.hashed_password = hash_password(body.nova_senha)
+    db.query(RefreshToken).filter(RefreshToken.user_id == user.id).delete(
+        synchronize_session=False
+    )
+    db.commit()
     return {"message": "Senha alterada com sucesso."}
