@@ -182,6 +182,14 @@ const EMPTY_FORM = {
   mobilado: "",
   tem_garagem: false,
   tem_quintal: false,
+  tem_cozinha: false,
+  tem_sala: false,
+  tem_varanda: false,
+  tem_wc_servico: false,
+  tem_piscina: false,
+  tem_gerador: false,
+  tem_seguranca: false,
+  tem_elevador: false,
   contacto_telefone: "",
   contacto_whatsapp: "",
 };
@@ -223,6 +231,14 @@ function PublicarInner() {
         mobilado: data.mobilado != null ? String(data.mobilado) : "",
         tem_garagem: data.tem_garagem ?? false,
         tem_quintal: data.tem_quintal ?? false,
+        tem_cozinha: data.tem_cozinha ?? false,
+        tem_sala: data.tem_sala ?? false,
+        tem_varanda: data.tem_varanda ?? false,
+        tem_wc_servico: data.tem_wc_servico ?? false,
+        tem_piscina: data.tem_piscina ?? false,
+        tem_gerador: data.tem_gerador ?? false,
+        tem_seguranca: data.tem_seguranca ?? false,
+        tem_elevador: data.tem_elevador ?? false,
         contacto_telefone: data.contacto_telefone ?? "",
         contacto_whatsapp: data.contacto_whatsapp ?? "",
       });
@@ -478,15 +494,29 @@ function PublicarInner() {
               <option value="false">Não</option>
             </select>
           </div>
-          <div className="flex gap-6">
-            <label className="flex cursor-pointer items-center gap-2">
-              <input type="checkbox" checked={form.tem_garagem} onChange={set("tem_garagem")} className="h-4 w-4 rounded border-surface-border text-primary-600" />
-              <span className="text-sm text-primary-800 dark:text-slate-300">Garagem</span>
-            </label>
-            <label className="flex cursor-pointer items-center gap-2">
-              <input type="checkbox" checked={form.tem_quintal} onChange={set("tem_quintal")} className="h-4 w-4 rounded border-surface-border text-primary-600" />
-              <span className="text-sm text-primary-800 dark:text-slate-300">Quintal</span>
-            </label>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {([
+              ["tem_cozinha", "🍳 Cozinha"],
+              ["tem_sala", "🪑 Sala"],
+              ["tem_garagem", "🚗 Garagem"],
+              ["tem_quintal", "🌿 Quintal"],
+              ["tem_varanda", "🏠 Varanda"],
+              ["tem_wc_servico", "🚿 WC serviço"],
+              ["tem_piscina", "🏊 Piscina"],
+              ["tem_gerador", "⚡ Gerador"],
+              ["tem_seguranca", "🔒 Segurança 24h"],
+              ["tem_elevador", "🛗 Elevador"],
+            ] as [string, string][]).map(([key, label]) => (
+              <label key={key} className="flex cursor-pointer items-center gap-2 rounded-xl border border-surface-border dark:border-dark-border bg-white dark:bg-dark-card px-3 py-2.5 hover:bg-surface-muted dark:hover:bg-dark-elevated transition-colors">
+                <input
+                  type="checkbox"
+                  checked={!!(form as any)[key]}
+                  onChange={set(key as any)}
+                  className="h-4 w-4 rounded border-surface-border text-primary-600"
+                />
+                <span className="text-sm text-primary-800 dark:text-slate-300">{label}</span>
+              </label>
+            ))}
           </div>
         </div>
 

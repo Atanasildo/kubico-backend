@@ -40,6 +40,14 @@ class PropertyBase(BaseModel):
     mobilado: bool | None = None
     tem_garagem: bool = False
     tem_quintal: bool = False
+    tem_cozinha: bool = False
+    tem_sala: bool = False
+    tem_varanda: bool = False
+    tem_wc_servico: bool = False
+    tem_piscina: bool = False
+    tem_gerador: bool = False
+    tem_seguranca: bool = False
+    tem_elevador: bool = False
     andares: int | None = Field(default=None, ge=0, le=200)
     contacto_telefone: str | None = Field(default=None, max_length=30)
     contacto_whatsapp: str | None = Field(default=None, max_length=30)
@@ -81,6 +89,14 @@ class PropertyUpdate(BaseModel):
     mobilado: bool | None = None
     tem_garagem: bool | None = None
     tem_quintal: bool | None = None
+    tem_cozinha: bool | None = None
+    tem_sala: bool | None = None
+    tem_varanda: bool | None = None
+    tem_wc_servico: bool | None = None
+    tem_piscina: bool | None = None
+    tem_gerador: bool | None = None
+    tem_seguranca: bool | None = None
+    tem_elevador: bool | None = None
     andares: int | None = Field(default=None, ge=0, le=200)
     imagens: list[str] | None = Field(default=None, max_length=20)
     videos: list[str] | None = Field(default=None, max_length=3)

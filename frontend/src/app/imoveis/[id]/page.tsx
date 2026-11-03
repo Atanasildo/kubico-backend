@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -168,7 +168,9 @@ export default function PropertyDetailPage() {
             <h2 className="mb-4 font-display text-base font-bold text-primary-900 dark:text-slate-100">
               Características
             </h2>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+
+            {/* Contadores */}
+            <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
               {property.quartos != null && (
                 <div className="flex items-center gap-2 rounded-xl bg-surface-muted dark:bg-dark-elevated p-3">
                   <Bed className="h-5 w-5 text-primary-600 dark:text-primary-400" />
@@ -196,27 +198,67 @@ export default function PropertyDetailPage() {
                   </div>
                 </div>
               )}
-              {property.tem_garagem && (
+              {property.andares != null && (
                 <div className="flex items-center gap-2 rounded-xl bg-surface-muted dark:bg-dark-elevated p-3">
-                  <Car className="h-5 w-5 text-primary-600 dark:text-primary-400" />
-                  <div className="text-sm font-semibold text-primary-900 dark:text-slate-100">Garagem</div>
-                </div>
-              )}
-              {property.tem_quintal && (
-                <div className="flex items-center gap-2 rounded-xl bg-surface-muted dark:bg-dark-elevated p-3">
-                  <Trees className="h-5 w-5 text-primary-600 dark:text-primary-400" />
-                  <div className="text-sm font-semibold text-primary-900 dark:text-slate-100">Quintal</div>
-                </div>
-              )}
-              {property.mobilado != null && (
-                <div className="flex items-center gap-2 rounded-xl bg-surface-muted dark:bg-dark-elevated p-3">
-                  <div className="text-sm font-semibold text-primary-900 dark:text-slate-100">
-                    {property.mobilado ? "Mobilado" : "Sem mobília"}
+                  <div className="flex h-5 w-5 items-center justify-center text-primary-600 dark:text-primary-400 font-bold text-xs">Nº</div>
+                  <div>
+                    <div className="text-sm font-semibold text-primary-900 dark:text-slate-100">{property.andares}º</div>
+                    <div className="text-xs text-primary-500 dark:text-slate-400">Andar</div>
                   </div>
                 </div>
               )}
             </div>
+
+            {/* Comodidades booleanas */}
+            {(() => {
+              const features: { key: keyof typeof property; label: string; icon: React.ReactNode }[] = [
+                { key: "mobilado", label: property.mobilado ? "Mobilado" : "Sem mobília", icon: <span className="text-base">🛋️</span> },
+                { key: "tem_cozinha", label: "Cozinha", icon: <span className="text-base">🍳</span> },
+                { key: "tem_sala", label: "Sala", icon: <span className="text-base">🪑</span> },
+                { key: "tem_garagem", label: "Garagem", icon: <Car className="h-4 w-4" /> },
+                { key: "tem_quintal", label: "Quintal", icon: <Trees className="h-4 w-4" /> },
+                { key: "tem_varanda", label: "Varanda", icon: <span className="text-base">🏠</span> },
+                { key: "tem_wc_servico", label: "WC serviço", icon: <span className="text-base">🚿</span> },
+                { key: "tem_piscina", label: "Piscina", icon: <span className="text-base">🏊</span> },
+                { key: "tem_gerador", label: "Gerador", icon: <span className="text-base">⚡</span> },
+                { key: "tem_seguranca", label: "Segurança 24h", icon: <ShieldCheck className="h-4 w-4" /> },
+                { key: "tem_elevador", label: "Elevador", icon: <span className="text-base">🛗</span> },
+              ];
+              const active = features.filter(f => property[f.key]);
+              if (!active.length) return null;
+              return (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {active.map(f => (
+                    <div key={String(f.key)} className="flex items-center gap-1.5 rounded-full border border-surface-border dark:border-dark-border bg-white dark:bg-dark-elevated px-3 py-1.5 text-xs font-medium text-primary-700 dark:text-slate-200">
+                      <span className="text-primary-500 dark:text-primary-400">{f.icon}</span>
+                      {f.label}
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
+
+          {/* Mapa */}
+          {property.latitude && property.longitude && (
+            <div className="card overflow-hidden p-0">
+              <div className="flex items-center gap-2 border-b border-surface-border dark:border-dark-border px-5 py-3">
+                <MapPin className="h-4 w-4 text-primary-600 dark:text-primary-400" />
+                <h2 className="font-display text-base font-bold text-primary-900 dark:text-slate-100">
+                  Localização
+                </h2>
+              </div>
+              <iframe
+                title="Localização do imóvel"
+                src={`https://www.openstreetmap.org/export/embed.html?bbox=${Number(property.longitude) - 0.005},${Number(property.latitude) - 0.005},${Number(property.longitude) + 0.005},${Number(property.latitude) + 0.005}&layer=mapnik&marker=${property.latitude},${property.longitude}`}
+                className="h-64 w-full border-0"
+                loading="lazy"
+              />
+              <div className="px-5 py-2.5 text-xs text-primary-400 dark:text-slate-500">
+                {[property.bairro, property.municipio, property.provincia].filter(Boolean).join(", ")}
+              </div>
+            </div>
+          )}
 
           {/* Description */}
           {property.descricao && (

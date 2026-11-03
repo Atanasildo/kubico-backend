@@ -75,6 +75,14 @@ export interface Property extends PropertyListItem {
   mobilado?: boolean;
   tem_garagem: boolean;
   tem_quintal: boolean;
+  tem_cozinha?: boolean;
+  tem_sala?: boolean;
+  tem_varanda?: boolean;
+  tem_wc_servico?: boolean;
+  tem_piscina?: boolean;
+  tem_gerador?: boolean;
+  tem_seguranca?: boolean;
+  tem_elevador?: boolean;
   andares?: number;
   videos?: string[];
   contacto_telefone?: string;

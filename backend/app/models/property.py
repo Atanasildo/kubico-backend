@@ -72,6 +72,14 @@ class Property(Base):
     mobilado = Column(Boolean, nullable=True)
     tem_garagem = Column(Boolean, default=False)
     tem_quintal = Column(Boolean, default=False)
+    tem_cozinha = Column(Boolean, default=False)
+    tem_sala = Column(Boolean, default=False)
+    tem_varanda = Column(Boolean, default=False)
+    tem_wc_servico = Column(Boolean, default=False)  # WC de serviço separado
+    tem_piscina = Column(Boolean, default=False)
+    tem_gerador = Column(Boolean, default=False)
+    tem_seguranca = Column(Boolean, default=False)
+    tem_elevador = Column(Boolean, default=False)
     andares = Column(Integer, nullable=True)
 
     # Mídia
