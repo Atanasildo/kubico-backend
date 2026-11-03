@@ -29,6 +29,28 @@ class Settings(BaseSettings):
     # Admin
     ADMIN_SETUP_KEY: str = "troque-esta-chave-admin-no-env"
 
+    @field_validator("ADMIN_SETUP_KEY")
+    @classmethod
+    def _validate_admin_key(cls, v: str) -> str:
+        _insecure_default = "troque-esta-chave-admin-no-env"
+        if v != _insecure_default and len(v) < 32:
+            raise ValueError(
+                "ADMIN_SETUP_KEY deve ter pelo menos 32 caracteres. "
+                "Gera uma com: python -c \"import secrets; print(secrets.token_hex(32))\""
+            )
+        return v
+
+    @field_validator("SECRET_KEY")
+    @classmethod
+    def _validate_secret_key(cls, v: str) -> str:
+        _insecure_default = "troque-esta-chave-por-uma-chave-secreta-forte"
+        if v != _insecure_default and len(v) < 32:
+            raise ValueError(
+                "SECRET_KEY deve ter pelo menos 32 caracteres. "
+                "Gera uma com: python -c \"import secrets; print(secrets.token_hex(32))\""
+            )
+        return v
+
     # Verificacao OTP
     VERIFICATION_CODE_EXPIRE_MINUTES: int = 10
     VERIFICATION_CODE_MAX_ATTEMPTS: int = 5

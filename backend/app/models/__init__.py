@@ -1,4 +1,5 @@
 from app.models.favorite import Favorite  # noqa: F401
+from app.models.refresh_token import RefreshToken  # noqa: F401
 from app.models.lead import Lead  # noqa: F401
 from app.models.payment import Payment  # noqa: F401
 from app.models.property import Property  # noqa: F401

@@ -2,7 +2,7 @@ import uuid
 
 from sqlalchemy.orm import Session
 
-from app.core.security import hash_password, verify_password
+from app.core.security import hash_password, verify_password, _DUMMY_HASH
 from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate
 
@@ -37,10 +37,13 @@ def create_user(db: Session, user_in: UserCreate) -> User:
 
 
 def authenticate_user(db: Session, email: str, senha: str) -> User | None:
+    """Autenticação com timing constante — impede enumeração de emails por timing attack."""
     user = get_user_by_email(db, email)
-    if not user:
-        return None
-    if not verify_password(senha, user.hashed_password):
+    # Sempre correr o verify mesmo quando o utilizador não existe,
+    # para que o tempo de resposta seja idêntico em ambos os casos.
+    candidate_hash = user.hashed_password if user else _DUMMY_HASH
+    valid = verify_password(senha, candidate_hash)
+    if not user or not valid:
         return None
     return user
 

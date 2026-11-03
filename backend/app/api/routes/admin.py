@@ -19,7 +19,7 @@ router = APIRouter(prefix="/admin", tags=["Admin"])
 @router.get("/properties/pending", response_model=list[PropertyRead])
 def list_pending_properties(
     skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=50, ge=1, le=200),
+    limit: int = Query(default=50, ge=1, le=100),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles(UserRole.ADMIN)),
 ):
@@ -91,7 +91,7 @@ def verify_property(
 @router.get("/reports", tags=["Admin"])
 def list_reports(
     skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=50, ge=1, le=200),
+    limit: int = Query(default=50, ge=1, le=100),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles(UserRole.ADMIN)),
 ):
@@ -154,7 +154,7 @@ def resolve_report(
 @router.get("/users", status_code=status.HTTP_200_OK)
 def list_users(
     skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=50, ge=1, le=200),
+    limit: int = Query(default=50, ge=1, le=100),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles(UserRole.ADMIN)),
 ):

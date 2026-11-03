@@ -1,3 +1,4 @@
+import hashlib
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -7,6 +8,14 @@ from passlib.context import CryptContext
 from app.core.config import settings
 
 _pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# Dummy hash usado para manter timing constante quando o utilizador não existe
+_DUMMY_HASH = "$2b$12$dummyhashtopreventtimingattacksonloginendpoint000000000"
+
+
+def hash_token(token: str) -> str:
+    """SHA-256 do token em hex — para armazenar na DB sem expor o valor real."""
+    return hashlib.sha256(token.encode()).hexdigest()
 
 
 def hash_password(password: str) -> str:

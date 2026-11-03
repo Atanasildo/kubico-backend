@@ -1,3 +1,5 @@
+import html
+import re
 import uuid
 from datetime import datetime
 from decimal import Decimal
@@ -8,6 +10,15 @@ from app.models.property import PropertyStatus, TipoImovel, TipoNegocio
 from app.schemas.user import UserPublicRead
 
 _ALLOWED_MOEDAS = {"AOA", "USD"}
+
+# Remove tags HTML e escapa entidades — previne XSS armazenado
+def _strip_html(value: str | None) -> str | None:
+    if value is None:
+        return None
+    # remover tags HTML
+    clean = re.sub(r"<[^>]+>", "", value)
+    # escapar entidades residuais
+    return html.escape(clean.strip())
 
 
 class PropertyBase(BaseModel):
@@ -32,6 +43,16 @@ class PropertyBase(BaseModel):
     andares: int | None = Field(default=None, ge=0, le=200)
     contacto_telefone: str | None = Field(default=None, max_length=30)
     contacto_whatsapp: str | None = Field(default=None, max_length=30)
+
+    @field_validator("titulo")
+    @classmethod
+    def _sanitize_titulo(cls, v: str) -> str:
+        return _strip_html(v) or v
+
+    @field_validator("descricao")
+    @classmethod
+    def _sanitize_descricao(cls, v: str | None) -> str | None:
+        return _strip_html(v)
 
     @field_validator("moeda")
     @classmethod
@@ -66,6 +87,16 @@ class PropertyUpdate(BaseModel):
     contacto_telefone: str | None = Field(default=None, max_length=30)
     contacto_whatsapp: str | None = Field(default=None, max_length=30)
     status: PropertyStatus | None = None
+
+    @field_validator("titulo")
+    @classmethod
+    def _sanitize_titulo(cls, v: str | None) -> str | None:
+        return _strip_html(v) if v else v
+
+    @field_validator("descricao")
+    @classmethod
+    def _sanitize_descricao(cls, v: str | None) -> str | None:
+        return _strip_html(v)
 
     @field_validator("moeda")
     @classmethod

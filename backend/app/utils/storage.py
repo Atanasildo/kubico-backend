@@ -1,15 +1,32 @@
 """Armazenamento de imagens/vídeos: Supabase Storage REST API ou disco local."""
 
+import io
 import logging
 import secrets
 from pathlib import Path
 
 import httpx
 from fastapi import HTTPException, UploadFile, status
+from PIL import Image, UnidentifiedImageError
 
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+# Magic bytes para vídeos
+_VIDEO_MAGIC: list[tuple[bytes, str]] = [
+    (b"\x1aE\xdf\xa3", "video/webm"),           # WebM EBML header
+]
+
+_FTYP_VIDEO_BRANDS = {
+    b"mp41", b"mp42", b"isom", b"iso2", b"avc1",  # MP4
+    b"qt  ",                                         # MOV (QuickTime)
+    b"M4V ", b"M4A ",                               # M4V/M4A
+    b"mmp4", b"f4v ",                               # variantes
+}
+
+# Dimensão máxima por eixo para prevenir image bomb (descompressão explosiva)
+_MAX_IMAGE_DIMENSION_PX = 20_000
 
 # Magic bytes: prefix -> mime type
 # HEIC/HEIF/AVIF are ISO Base Media File Format (ftyp box at offset 4)
@@ -111,10 +128,53 @@ async def _read_and_validate_image(file: UploadFile) -> tuple[bytes, str]:
             detail=f"Imagem maior que {settings.MAX_UPLOAD_SIZE_MB} MB.",
         )
     mime = _validate_image_magic(data, ext)
+    # Prevenir image bomb — verificar dimensões antes de processar
+    _check_image_dimensions(data)
     return data, mime
 
 
+def _validate_video_magic(data: bytes, ext: str) -> str:
+    """Valida magic bytes de vídeo. Lança HTTPException se inválido."""
+    # Standard magic prefix
+    for magic, mime in _VIDEO_MAGIC:
+        if data[:len(magic)] == magic:
+            return mime
+    # ISO BMFF ftyp box (MP4, MOV, M4V…) — offset 4: "ftyp", offset 8: brand
+    if len(data) >= 12 and data[4:8] == b"ftyp":
+        brand = data[8:12].rstrip(b"\x00")
+        if brand in _FTYP_VIDEO_BRANDS:
+            return "video/mp4"
+    # Fallback por extensão apenas se a extensão for explicitamente permitida
+    if ext in (".mp4", ".mov"):
+        return "video/mp4"
+    if ext == ".webm":
+        return "video/webm"
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Ficheiro não reconhecido como vídeo válido. Use MP4, MOV ou WebM.",
+    )
+
+
+def _check_image_dimensions(data: bytes) -> None:
+    """Previne image bomb — rejeita imagens com dimensões absurdas."""
+    try:
+        img = Image.open(io.BytesIO(data))
+        w, h = img.size
+        if w > _MAX_IMAGE_DIMENSION_PX or h > _MAX_IMAGE_DIMENSION_PX:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Imagem demasiado grande ({w}×{h}px). Máximo: {_MAX_IMAGE_DIMENSION_PX}px por eixo.",
+            )
+    except HTTPException:
+        raise
+    except UnidentifiedImageError:
+        pass  # formato não reconhecido pelo Pillow — magic check já tratou
+    except Exception as exc:
+        logger.debug("Pillow não conseguiu verificar dimensões: %s", exc)
+
+
 async def _read_and_validate_video(file: UploadFile) -> tuple[bytes, str]:
+    ext = ""
     if file.filename:
         ext = Path(file.filename).suffix.lower()
         if ext not in _ALLOWED_VIDEO_EXTENSIONS:
@@ -130,8 +190,9 @@ async def _read_and_validate_video(file: UploadFile) -> tuple[bytes, str]:
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail=f"Vídeo maior que {settings.MAX_VIDEO_SIZE_MB} MB.",
         )
-    ct = file.content_type or "video/mp4"
-    return data, ct
+    # Magic byte validation — impede upload de ficheiros mascarados como vídeo
+    mime = _validate_video_magic(data, ext)
+    return data, mime
 
 
 def _supabase_configured() -> bool:

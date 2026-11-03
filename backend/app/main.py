@@ -7,6 +7,10 @@ from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
 from app.api.routes import (
     admin,
     alerts,
@@ -23,8 +27,9 @@ from app.api.routes import (
 from app.core.config import settings
 from app.core.database import Base, engine
 
-# Cria tabelas se não existirem (desenvolvimento)
-Base.metadata.create_all(bind=engine)
+# Cria tabelas apenas em desenvolvimento — produção usa Alembic
+if settings.ENVIRONMENT == "development":
+    Base.metadata.create_all(bind=engine)
 
 # ── Aviso de segurança em startup ────────────────────────────────────────────
 _sec_logger = _startup_log.getLogger("kubico.security")
@@ -40,36 +45,94 @@ for _var, _default in _INSECURE_DEFAULTS.items():
             _var,
         )
 
+# ── Rate limiter (slowapi) ────────────────────────────────────────────────────
+limiter = Limiter(key_func=get_remote_address)
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description=(
-        "API do KUBICO — Plataforma angolana de imóveis para arrendamento e venda. "
-        "Conecta proprietários e inquilinos/compradores em angola com filtros por "
-        "província, município e bairro, destaques pagos e verificação presencial."
+        "API do KUBICO — Plataforma angolana de imóveis para arrendamento e venda."
     ),
     version="1.0.0",
+    # Esconder versão e detalhes em produção
+    openapi_url="/api/openapi.json" if settings.ENVIRONMENT == "development" else None,
+    docs_url="/api/docs" if settings.ENVIRONMENT == "development" else None,
+    redoc_url=None,
 )
 
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# ── Middleware de segurança ──────────────────────────────────────────────────
+# Exportar limiter para uso nos routers
+app.state.limiter = limiter
+
+
+# ── Middleware: body size máximo ──────────────────────────────────────────────
+class MaxBodySizeMiddleware(BaseHTTPMiddleware):
+    """Rejeita requests JSON maiores que 2MB — previne DoS por body flooding."""
+    MAX_BYTES = 2 * 1024 * 1024  # 2MB (uploads têm o seu próprio limite via storage.py)
+
+    async def dispatch(self, request: Request, call_next):
+        # Não aplicar a uploads de ficheiros (multipart tem o seu próprio limite)
+        content_type = request.headers.get("content-type", "")
+        if "multipart" in content_type:
+            return await call_next(request)
+        cl = request.headers.get("content-length")
+        if cl and int(cl) > self.MAX_BYTES:
+            return JSONResponse(
+                status_code=413,
+                content={"detail": "Request demasiado grande. Máximo: 2MB para JSON."},
+            )
+        return await call_next(request)
+
+
+# ── Middleware: security headers ──────────────────────────────────────────────
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
-        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+
+        # Prevenir clickjacking
         response.headers.setdefault("X-Frame-Options", "DENY")
-        response.headers.setdefault("X-XSS-Protection", "1; mode=block")
+        # Prevenir MIME sniffing
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        # HSTS — forçar HTTPS em produção
         response.headers.setdefault(
-            "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
+            "Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload"
         )
+        # Política de referrer
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
-        if "server" in response.headers:
-            del response.headers["server"]
+        # Content Security Policy — principal defesa contra XSS
+        response.headers.setdefault(
+            "Content-Security-Policy",
+            (
+                "default-src 'self'; "
+                "script-src 'self'; "
+                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+                "font-src 'self' https://fonts.gstatic.com; "
+                "img-src 'self' data: blob: https://*.supabase.co; "
+                "media-src 'self' https://*.supabase.co; "
+                "connect-src 'self' https://*.supabase.co; "
+                "frame-ancestors 'none'; "
+                "base-uri 'self'; "
+                "form-action 'self';"
+            ),
+        )
+        # Desabilitar APIs do browser desnecessárias
+        response.headers.setdefault(
+            "Permissions-Policy",
+            "geolocation=(), camera=(), microphone=(), payment=()",
+        )
+        # Remover header que revela tecnologia
+        response.headers.pop("server", None)
+        response.headers.pop("x-powered-by", None)
+        # X-XSS-Protection obsoleto em browsers modernos — omitir
         return response
 
 
+app.add_middleware(MaxBodySizeMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 
-# ── CORS ─────────────────────────────────────────────────────────────────────
+# ── CORS ──────────────────────────────────────────────────────────────────────
 _allowed_origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
@@ -79,7 +142,7 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "Accept"],
 )
 
-# ── Servir uploads locais em dev ─────────────────────────────────────────────
+# ── Servir uploads locais em dev ──────────────────────────────────────────────
 _upload_dir = Path(settings.LOCAL_UPLOAD_DIR)
 _upload_dir.mkdir(parents=True, exist_ok=True)
 app.mount(
@@ -88,7 +151,7 @@ app.mount(
     name="uploads",
 )
 
-# ── Routers ──────────────────────────────────────────────────────────────────
+# ── Routers ───────────────────────────────────────────────────────────────────
 _prefix = settings.API_V1_PREFIX
 
 app.include_router(auth.router, prefix=_prefix)
@@ -104,22 +167,26 @@ app.include_router(payments.router, prefix=_prefix)
 app.include_router(admin.router, prefix=_prefix)
 
 
-# ── Handlers ─────────────────────────────────────────────────────────────────
+# ── Handlers ──────────────────────────────────────────────────────────────────
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
     import logging
     logging.getLogger(__name__).error(
         "Erro 500: %s: %s", type(exc).__name__, str(exc), exc_info=exc
     )
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "Erro interno no servidor. Tente novamente mais tarde."},
+    # Nunca expor detalhes internos em produção
+    detail = (
+        f"{type(exc).__name__}: {exc}"
+        if settings.ENVIRONMENT == "development"
+        else "Erro interno no servidor. Tente novamente mais tarde."
     )
+    return JSONResponse(status_code=500, content={"detail": detail})
 
 
 @app.get("/", tags=["Status"])
 def root():
-    return {"app": settings.PROJECT_NAME, "status": "online", "version": "1.0.0"}
+    # Não expor versão em produção
+    return {"app": settings.PROJECT_NAME, "status": "online"}
 
 
 @app.get("/health", tags=["Status"])
