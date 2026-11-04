@@ -35,3 +35,9 @@ services:
         value: /tmp/kubico_uploads
       - key: LOCAL_UPLOAD_PUBLIC_BASE
         value: /uploads
+      - key: SMS_API_KEY
+        value: "atsk_e619c6027d2823a87b5f1a8165bb77f2082acf288448bc1101af731ae842678294943f19"
+      - key: SMS_USERNAME
+        value: "sandbox"
+      - key: SMS_SENDER_ID
+        value: ""
