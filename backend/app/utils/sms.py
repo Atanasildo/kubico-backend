@@ -1,9 +1,9 @@
 """Serviço de envio de SMS via Africa's Talking.
 
-Configurar no .env:
-    SMS_API_KEY=<chave da Africa's Talking>
-    SMS_USERNAME=<username da AT — "sandbox" para testes>
-    SMS_SENDER_ID=KUBICO
+Configurar no .env / render.yaml:
+    SMS_API_KEY=<chave da AT>
+    SMS_USERNAME=sandbox          # sandbox para testes, username real em produção
+    SMS_SENDER_ID=                # deixar vazio no sandbox
 """
 import json
 import urllib.parse
@@ -17,6 +17,14 @@ def send_sms(destinatario: str, mensagem: str) -> bool:
     if not settings.SMS_API_KEY:
         print(f"[SMS SKIP — sem API key] Para: {destinatario} | Msg: {mensagem}")
         return False
+
+    # Sandbox usa endpoint diferente do de produção
+    is_sandbox = settings.SMS_USERNAME == "sandbox"
+    if is_sandbox:
+        url = "https://api.sandbox.africastalking.com/version1/messaging"
+    else:
+        url = "https://api.africastalking.com/version1/messaging"
+
     try:
         payload = {
             "username": settings.SMS_USERNAME,
@@ -28,7 +36,7 @@ def send_sms(destinatario: str, mensagem: str) -> bool:
 
         data = urllib.parse.urlencode(payload).encode()
         req = urllib.request.Request(
-            "https://api.africastalking.com/version1/messaging",
+            url,
             data=data,
             headers={
                 "Accept": "application/json",
