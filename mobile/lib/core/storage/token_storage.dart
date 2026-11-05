@@ -7,6 +7,7 @@ class TokenStorage {
 
   final _storage = const FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    wOptions: WebOptions(dbName: 'kubico_secure', publicKey: 'kubico_pk'),
   );
 
   Future<void> saveTokens({required String access, required String refresh}) async {
