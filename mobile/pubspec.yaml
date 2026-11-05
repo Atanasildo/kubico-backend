@@ -1,0 +1,44 @@
+name: kubico
+description: Kubico — Plataforma imobiliária angolana
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Estado
+  provider: ^6.1.2
+
+  # HTTP
+  dio: ^5.4.3+1
+
+  # Storage local
+  flutter_secure_storage: ^9.0.0
+  shared_preferences: ^2.2.3
+
+  # Imagens
+  cached_network_image: ^3.3.1
+
+  # UI
+  google_fonts: ^6.2.1
+  flutter_svg: ^2.0.10+1
+  shimmer: ^3.0.0
+
+  # Utilities
+  intl: ^0.19.0
+  url_launcher: ^6.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/icons/
