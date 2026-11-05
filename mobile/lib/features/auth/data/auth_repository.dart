@@ -11,11 +11,10 @@ class AuthRepository {
   Future<UserModel> login({required String email, required String senha}) async {
     final res = await _dio.post(ApiEndpoints.login,
       data: {'email': email, 'senha': senha});
-    await _storage.saveTokens(
-      access: res.data['access_token'],
-      refresh: res.data['refresh_token'],
-    );
-    return fetchMe();
+    final access  = res.data['access_token']  as String;
+    final refresh = res.data['refresh_token'] as String;
+    await _storage.saveTokens(access: access, refresh: refresh);
+    return fetchMeWithToken(access);
   }
 
   Future<UserModel> register({
@@ -34,15 +33,21 @@ class AuthRepository {
       'role': role,
       if (nomeEmpresa != null && nomeEmpresa.isNotEmpty) 'nome_empresa': nomeEmpresa,
     });
-    await _storage.saveTokens(
-      access: res.data['access_token'],
-      refresh: res.data['refresh_token'],
-    );
-    return fetchMe();
+    final access  = res.data['access_token']  as String;
+    final refresh = res.data['refresh_token'] as String;
+    await _storage.saveTokens(access: access, refresh: refresh);
+    return fetchMeWithToken(access);
   }
 
   Future<UserModel> fetchMe() async {
     final res = await _dio.get(ApiEndpoints.me);
+    return UserModel.fromJson(res.data);
+  }
+
+  /// Fetch /me with an explicit token — bypasses the storage read race on web.
+  Future<UserModel> fetchMeWithToken(String token) async {
+    final res = await _dio.get(ApiEndpoints.me,
+      options: Options(headers: {'Authorization': 'Bearer $token'}));
     return UserModel.fromJson(res.data);
   }
 
