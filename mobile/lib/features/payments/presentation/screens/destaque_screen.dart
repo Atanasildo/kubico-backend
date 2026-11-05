@@ -88,7 +88,7 @@ class _DestaqueScreenState extends State<DestaqueScreen> {
           const Text('Escolhe o plano', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 14),
           Expanded(
-            child: ListView(_planos.map((p) => GestureDetector(
+            child: ListView(children: _planos.map((p) => GestureDetector(
               onTap: () => setState(() => _dias = p['dias'] as int),
               child: Container(
                 margin: const EdgeInsets.only(bottom: 12),
