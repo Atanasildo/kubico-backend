@@ -9,15 +9,13 @@ class AuthRepository {
   final TokenStorage _storage = TokenStorage.instance;
 
   Future<UserModel> login({required String email, required String senha}) async {
-    final res = await _dio.post(ApiEndpoints.login, data: {
-      'email': email,
-      'senha': senha,
-    });
+    final res = await _dio.post(ApiEndpoints.login,
+      data: {'email': email, 'senha': senha});
     await _storage.saveTokens(
       access: res.data['access_token'],
       refresh: res.data['refresh_token'],
     );
-    return _fetchMe();
+    return fetchMe();
   }
 
   Future<UserModel> register({
@@ -28,34 +26,86 @@ class AuthRepository {
     String role = 'particular',
     String? nomeEmpresa,
   }) async {
-    await _dio.post(ApiEndpoints.register, data: {
+    final res = await _dio.post(ApiEndpoints.register, data: {
       'nome': nome,
       'email': email,
       'senha': senha,
-      if (telefone != null) 'telefone': telefone,
+      if (telefone != null && telefone.isNotEmpty) 'telefone': telefone,
       'role': role,
-      if (nomeEmpresa != null) 'nome_empresa': nomeEmpresa,
+      if (nomeEmpresa != null && nomeEmpresa.isNotEmpty) 'nome_empresa': nomeEmpresa,
     });
-    return login(email: email, senha: senha);
+    await _storage.saveTokens(
+      access: res.data['access_token'],
+      refresh: res.data['refresh_token'],
+    );
+    return fetchMe();
   }
 
-  Future<UserModel> _fetchMe() async {
+  Future<UserModel> fetchMe() async {
     final res = await _dio.get(ApiEndpoints.me);
     return UserModel.fromJson(res.data);
   }
 
   Future<UserModel?> tryRestoreSession() async {
-    try {
-      return await _fetchMe();
-    } catch (_) {
-      return null;
-    }
+    try { return await fetchMe(); } catch (_) { return null; }
   }
 
-  Future<void> logout() async {
-    try {
-      await _dio.post(ApiEndpoints.logout);
-    } catch (_) {}
-    await _storage.clear();
+  Future<void> logout() => ApiClient.instance.logout();
+
+  Future<void> forgotPassword(String email) async {
+    await _dio.post(ApiEndpoints.forgotPassword,
+      data: {'email': email});
+  }
+
+  Future<void> forgotPasswordPhone(String telefone) async {
+    await _dio.post(ApiEndpoints.forgotPasswordPhone,
+      data: {'telefone': telefone});
+  }
+
+  Future<void> resetPasswordPhone({
+    required String telefone,
+    required String codigo,
+    required String novaSenha,
+  }) async {
+    await _dio.post(ApiEndpoints.resetPasswordPhone, data: {
+      'telefone': telefone,
+      'codigo': codigo,
+      'nova_senha': novaSenha,
+    });
+  }
+
+  Future<void> changePassword({
+    required String senhaAtual,
+    required String senhaNova,
+  }) async {
+    await _dio.post(ApiEndpoints.changePassword, data: {
+      'senha_atual': senhaAtual,
+      'senha_nova': senhaNova,
+    });
+  }
+
+  Future<void> requestVerification(String canal) async {
+    await _dio.post(ApiEndpoints.requestVerification,
+      data: {'canal': canal});
+  }
+
+  Future<void> verifyCode(String canal, String codigo) async {
+    await _dio.post(ApiEndpoints.verifyCode,
+      data: {'canal': canal, 'codigo': codigo});
+  }
+
+  Future<UserModel> updateProfile(Map<String, dynamic> data) async {
+    final res = await _dio.put(ApiEndpoints.updateMe, data: data);
+    return UserModel.fromJson(res.data);
+  }
+
+  Future<String> uploadProfilePhoto(String filePath) async {
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(filePath),
+    });
+    final res = await _dio.post(ApiEndpoints.uploadProfile,
+      data: formData,
+      options: Options(contentType: 'multipart/form-data'));
+    return res.data['url'];
   }
 }

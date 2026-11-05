@@ -8,6 +8,7 @@ class ApiClient {
 
   late final Dio _dio;
   final TokenStorage _storage = TokenStorage.instance;
+  bool _refreshing = false;
 
   void init() {
     _dio = Dio(BaseOptions(
@@ -26,8 +27,10 @@ class ApiClient {
         return handler.next(options);
       },
       onError: (error, handler) async {
-        if (error.response?.statusCode == 401) {
+        if (error.response?.statusCode == 401 && !_refreshing) {
+          _refreshing = true;
           final refreshed = await _refreshToken();
+          _refreshing = false;
           if (refreshed) {
             final retry = error.requestOptions;
             final token = await _storage.getAccessToken();
@@ -45,7 +48,9 @@ class ApiClient {
     try {
       final refresh = await _storage.getRefreshToken();
       if (refresh == null) return false;
-      final res = await _dio.post('/auth/refresh', data: {'refresh_token': refresh});
+      // refresh recebe o token como query param
+      final res = await _dio.post('/auth/refresh',
+        queryParameters: {'token': refresh});
       await _storage.saveTokens(
         access: res.data['access_token'],
         refresh: res.data['refresh_token'],
@@ -55,6 +60,17 @@ class ApiClient {
       await _storage.clear();
       return false;
     }
+  }
+
+  Future<void> logout() async {
+    try {
+      final refresh = await _storage.getRefreshToken();
+      if (refresh != null) {
+        await _dio.post('/auth/logout',
+          queryParameters: {'token': refresh});
+      }
+    } catch (_) {}
+    await _storage.clear();
   }
 
   Dio get dio => _dio;

@@ -6,86 +6,78 @@ import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import '../../data/property_model.dart';
 import '../../data/property_repository.dart';
 import '../widgets/property_card.dart';
+import '../widgets/filter_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
-  @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  @override State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final _repo = PropertyRepository();
+  final _repo      = PropertyRepository();
   final _searchCtrl = TextEditingController();
-  final _scrollCtrl = ScrollController();
+  final _scroll    = ScrollController();
 
   List<PropertyModel> _items = [];
-  bool _loading = true;
+  bool _loading    = true;
   bool _loadingMore = false;
-  bool _hasMore = true;
-  int _page = 1;
+  bool _hasMore    = true;
+  int  _skip       = 0;
 
   String? _filterNegocio;
   String? _filterProvincia;
+  String? _filterTipoImovel;
+  int?    _filterQuartosMin;
+  double? _filterPrecoMax;
 
   @override
   void initState() {
     super.initState();
-    _load();
-    _scrollCtrl.addListener(_onScroll);
+    _load(reset: true);
+    _scroll.addListener(() {
+      if (_scroll.position.pixels >= _scroll.position.maxScrollExtent - 300
+          && !_loadingMore && _hasMore) _loadMore();
+    });
   }
 
   @override
-  void dispose() {
-    _searchCtrl.dispose();
-    _scrollCtrl.dispose();
-    super.dispose();
-  }
-
-  void _onScroll() {
-    if (_scrollCtrl.position.pixels >= _scrollCtrl.position.maxScrollExtent - 200
-        && !_loadingMore && _hasMore) {
-      _loadMore();
-    }
-  }
+  void dispose() { _searchCtrl.dispose(); _scroll.dispose(); super.dispose(); }
 
   Future<void> _load({bool reset = false}) async {
-    if (reset) { _page = 1; _items = []; _hasMore = true; }
-    setState(() => _loading = reset || _items.isEmpty);
+    if (reset) { _skip = 0; _items = []; _hasMore = true; }
+    if (!reset && _loadingMore) return;
+    setState(() { if (reset) _loading = true; else _loadingMore = true; });
     try {
-      final data = await _repo.getProperties(
-        page: _page,
+      final data = await _repo.search(
+        skip: _skip, limit: 20,
         tipoNegocio: _filterNegocio,
-        provincia: _filterProvincia,
-        search: _searchCtrl.text.isNotEmpty ? _searchCtrl.text : null,
+        tipoImovel:  _filterTipoImovel,
+        provincia:   _filterProvincia,
+        quartosMin:  _filterQuartosMin,
+        precoMax:    _filterPrecoMax,
+        q: _searchCtrl.text.trim().isNotEmpty ? _searchCtrl.text.trim() : null,
       );
       setState(() {
-        _items = reset ? data : [..._items, ...data];
+        _items   = reset ? data : [..._items, ...data];
         _hasMore = data.length >= 20;
-        _loading = false;
+        _skip   += data.length;
       });
-    } catch (_) {
-      setState(() => _loading = false);
-    }
+    } catch (_) {}
+    setState(() { _loading = false; _loadingMore = false; });
   }
 
-  Future<void> _loadMore() async {
-    _page++;
-    setState(() => _loadingMore = true);
-    try {
-      final data = await _repo.getProperties(
-        page: _page,
-        tipoNegocio: _filterNegocio,
-        provincia: _filterProvincia,
-      );
-      setState(() {
-        _items = [..._items, ...data];
-        _hasMore = data.length >= 20;
-        _loadingMore = false;
-      });
-    } catch (_) {
-      _page--;
-      setState(() => _loadingMore = false);
-    }
+  Future<void> _loadMore() async => _load();
+
+  void _applyFilters({
+    String? negocio, String? provincia, String? tipoImovel,
+    int? quartosMin, double? precoMax,
+  }) {
+    _filterNegocio   = negocio;
+    _filterProvincia = provincia;
+    _filterTipoImovel = tipoImovel;
+    _filterQuartosMin = quartosMin;
+    _filterPrecoMax   = precoMax;
+    _load(reset: true);
   }
 
   @override
@@ -93,163 +85,149 @@ class _HomeScreenState extends State<HomeScreen> {
     final auth = context.watch<AuthProvider>();
     return Scaffold(
       body: CustomScrollView(
-        controller: _scrollCtrl,
+        controller: _scroll,
         slivers: [
-          _buildAppBar(auth),
-          _buildSearchBar(),
-          _buildFilterChips(),
-          if (_loading)
-            const SliverFillRemaining(child: Center(
-              child: CircularProgressIndicator(color: AppColors.primary)))
-          else if (_items.isEmpty)
-            SliverFillRemaining(child: _EmptyState(onRetry: () => _load(reset: true)))
-          else ...[
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (_, i) => PropertyCard(
-                  property: _items[i],
-                  onFavoriteToggle: () {},
-                ),
-                childCount: _items.length,
+          _AppBar(auth: auth),
+          _SearchBar(
+            ctrl: _searchCtrl,
+            onSearch: () => _load(reset: true),
+            onFilter: () => showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: AppColors.surface,
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+              builder: (_) => FilterSheet(
+                currentNegocio:   _filterNegocio,
+                currentProvincia: _filterProvincia,
+                currentTipoImovel: _filterTipoImovel,
+                currentQuartosMin: _filterQuartosMin,
+                currentPrecoMax:   _filterPrecoMax,
+                onApply: _applyFilters,
               ),
             ),
+          ),
+          _Chips(
+            selected: _filterNegocio,
+            onSelect: (v) { _filterNegocio = v; _load(reset: true); },
+          ),
+          if (_loading)
+            const SliverFillRemaining(
+              child: Center(child: CircularProgressIndicator(color: AppColors.primary)))
+          else if (_items.isEmpty)
+            SliverFillRemaining(child: _Empty(onRetry: () => _load(reset: true)))
+          else ...[
+            SliverList(delegate: SliverChildBuilderDelegate(
+              (_, i) => PropertyCard(
+                property: _items[i],
+                onFavToggle: () {},
+              ),
+              childCount: _items.length,
+            )),
             if (_loadingMore)
               const SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.all(24),
                   child: Center(child: CircularProgressIndicator(
-                    color: AppColors.primary, strokeWidth: 2)),
-                )),
+                    color: AppColors.primary, strokeWidth: 2)))),
           ],
         ],
       ),
     );
   }
-
-  Widget _buildAppBar(AuthProvider auth) {
-    return SliverAppBar(
-      floating: true,
-      backgroundColor: AppColors.background,
-      elevation: 0,
-      title: Row(children: [
-        Container(
-          width: 32, height: 32,
-          decoration: BoxDecoration(
-            color: AppColors.primary, borderRadius: BorderRadius.circular(8)),
-          child: const Icon(Icons.home_rounded, color: Colors.white, size: 18),
-        ),
-        const SizedBox(width: 8),
-        const Text('kubico', style: TextStyle(
-          fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: -0.5)),
-      ]),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.notifications_outlined),
-          onPressed: () {},
-        ),
-        if (auth.user?.fotoPerfil != null)
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: CircleAvatar(
-              radius: 16,
-              backgroundImage: NetworkImage(auth.user!.fotoPerfil!),
-            ),
-          )
-        else
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: CircleAvatar(
-              radius: 16, backgroundColor: AppColors.primary,
-              child: Text(auth.user?.nome.substring(0, 1).toUpperCase() ?? 'K',
-                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildSearchBar() {
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-        child: TextField(
-          controller: _searchCtrl,
-          style: const TextStyle(color: AppColors.textPrimary),
-          onSubmitted: (_) => _load(reset: true),
-          decoration: InputDecoration(
-            hintText: 'Pesquisar imóveis...',
-            prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary, size: 20),
-            suffixIcon: IconButton(
-              icon: const Icon(Icons.tune, color: AppColors.primary, size: 20),
-              onPressed: _showFilters,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFilterChips() {
-    return SliverToBoxAdapter(
-      child: SizedBox(
-        height: 50,
-        child: ListView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          children: [
-            _FilterChip(
-              label: 'Todos',
-              active: _filterNegocio == null,
-              onTap: () { _filterNegocio = null; _load(reset: true); },
-            ),
-            _FilterChip(
-              label: 'Venda',
-              active: _filterNegocio == 'venda',
-              onTap: () { _filterNegocio = 'venda'; _load(reset: true); },
-            ),
-            _FilterChip(
-              label: 'Arrendamento',
-              active: _filterNegocio == 'arrendamento',
-              onTap: () { _filterNegocio = 'arrendamento'; _load(reset: true); },
-            ),
-            ...AppConstants.provincias.take(5).map((p) => _FilterChip(
-              label: p,
-              active: _filterProvincia == p,
-              onTap: () {
-                _filterProvincia = _filterProvincia == p ? null : p;
-                _load(reset: true);
-              },
-            )),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showFilters() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => _FilterSheet(
-        currentNegocio: _filterNegocio,
-        currentProvincia: _filterProvincia,
-        onApply: (negocio, provincia) {
-          setState(() { _filterNegocio = negocio; _filterProvincia = provincia; });
-          _load(reset: true);
-        },
-      ),
-    );
-  }
 }
 
-class _FilterChip extends StatelessWidget {
-  const _FilterChip({required this.label, required this.active, required this.onTap});
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
+// ── Sub-widgets ──────────────────────────────────────────────────────────────
 
+class _AppBar extends StatelessWidget {
+  const _AppBar({required this.auth});
+  final AuthProvider auth;
+
+  @override
+  Widget build(BuildContext context) => SliverAppBar(
+    floating: true,
+    backgroundColor: AppColors.background,
+    elevation: 0,
+    title: Row(children: [
+      Container(
+        width: 32, height: 32,
+        decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(8)),
+        child: const Icon(Icons.home_rounded, color: Colors.white, size: 18)),
+      const SizedBox(width: 8),
+      const Text('kubico', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: -0.5)),
+    ]),
+    actions: [
+      IconButton(icon: const Icon(Icons.notifications_outlined), onPressed: () {}),
+      Padding(
+        padding: const EdgeInsets.only(right: 12),
+        child: GestureDetector(
+          onTap: () {},
+          child: auth.user?.fotoPerfil != null
+              ? CircleAvatar(radius: 16, backgroundImage: NetworkImage(auth.user!.fotoPerfil!))
+              : CircleAvatar(
+                  radius: 16, backgroundColor: AppColors.primary,
+                  child: Text(
+                    auth.user?.nome.isNotEmpty == true
+                        ? auth.user!.nome[0].toUpperCase() : 'K',
+                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600))),
+        ),
+      ),
+    ],
+  );
+}
+
+class _SearchBar extends StatelessWidget {
+  const _SearchBar({required this.ctrl, required this.onSearch, required this.onFilter});
+  final TextEditingController ctrl;
+  final VoidCallback onSearch, onFilter;
+
+  @override
+  Widget build(BuildContext context) => SliverToBoxAdapter(
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: TextField(
+        controller: ctrl,
+        style: const TextStyle(color: AppColors.textPrimary),
+        onSubmitted: (_) => onSearch(),
+        decoration: InputDecoration(
+          hintText: 'Localização, tipo, bairro...',
+          prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary, size: 20),
+          suffixIcon: IconButton(
+            icon: const Icon(Icons.tune, color: AppColors.primary, size: 20),
+            onPressed: onFilter),
+        ),
+      ),
+    ),
+  );
+}
+
+class _Chips extends StatelessWidget {
+  const _Chips({required this.selected, required this.onSelect});
+  final String? selected;
+  final void Function(String?) onSelect;
+
+  @override
+  Widget build(BuildContext context) => SliverToBoxAdapter(
+    child: SizedBox(
+      height: 48,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+        children: [
+          _Chip(label: 'Todos',        active: selected == null,           onTap: () => onSelect(null)),
+          _Chip(label: 'Venda',        active: selected == 'venda',        onTap: () => onSelect('venda')),
+          _Chip(label: 'Arrendamento', active: selected == 'arrendamento', onTap: () => onSelect('arrendamento')),
+          ...AppConstants.provincias.take(6).map((p) => _Chip(
+            label: p, active: false, onTap: () {})),
+        ],
+      ),
+    ),
+  );
+}
+
+class _Chip extends StatelessWidget {
+  const _Chip({required this.label, required this.active, required this.onTap});
+  final String label; final bool active; final VoidCallback onTap;
   @override
   Widget build(BuildContext context) => GestureDetector(
     onTap: onTap,
@@ -261,122 +239,26 @@ class _FilterChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: active ? AppColors.primary : AppColors.border),
       ),
-      child: Text(label,
-        style: TextStyle(
-          fontSize: 13, fontWeight: FontWeight.w500,
-          color: active ? Colors.white : AppColors.textSecondary)),
-    ),
-  );
-}
-
-class _FilterSheet extends StatefulWidget {
-  const _FilterSheet({this.currentNegocio, this.currentProvincia, required this.onApply});
-  final String? currentNegocio;
-  final String? currentProvincia;
-  final void Function(String? negocio, String? provincia) onApply;
-
-  @override
-  State<_FilterSheet> createState() => _FilterSheetState();
-}
-
-class _FilterSheetState extends State<_FilterSheet> {
-  String? _negocio;
-  String? _provincia;
-
-  @override
-  void initState() {
-    super.initState();
-    _negocio = widget.currentNegocio;
-    _provincia = widget.currentProvincia;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            const Text('Filtros', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-            TextButton(
-              onPressed: () { _negocio = null; _provincia = null; setState(() {}); },
-              child: const Text('Limpar', style: TextStyle(color: AppColors.primary)),
-            ),
-          ]),
-          const SizedBox(height: 16),
-          const Text('Tipo de negócio', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-          const SizedBox(height: 8),
-          Row(children: [
-            _SheetChip(label: 'Venda', active: _negocio == 'venda',
-              onTap: () => setState(() => _negocio = _negocio == 'venda' ? null : 'venda')),
-            const SizedBox(width: 10),
-            _SheetChip(label: 'Arrendamento', active: _negocio == 'arrendamento',
-              onTap: () => setState(() => _negocio = _negocio == 'arrendamento' ? null : 'arrendamento')),
-          ]),
-          const SizedBox(height: 20),
-          const Text('Província', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            value: _provincia,
-            dropdownColor: AppColors.surface,
-            hint: const Text('Todas as províncias', style: TextStyle(color: AppColors.textHint)),
-            style: const TextStyle(color: AppColors.textPrimary),
-            items: AppConstants.provincias.map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
-            onChanged: (v) => setState(() => _provincia = v),
-            decoration: const InputDecoration(),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              widget.onApply(_negocio, _provincia);
-            },
-            child: const Text('Aplicar filtros'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SheetChip extends StatelessWidget {
-  const _SheetChip({required this.label, required this.active, required this.onTap});
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: active ? AppColors.primary.withOpacity(0.15) : AppColors.surfaceVariant,
-        border: Border.all(color: active ? AppColors.primary : AppColors.border),
-        borderRadius: BorderRadius.circular(8),
-      ),
       child: Text(label, style: TextStyle(
-        color: active ? AppColors.primary : AppColors.textSecondary,
-        fontWeight: active ? FontWeight.w600 : FontWeight.w400)),
+        fontSize: 13, fontWeight: FontWeight.w500,
+        color: active ? Colors.white : AppColors.textSecondary)),
     ),
   );
 }
 
-class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.onRetry});
+class _Empty extends StatelessWidget {
+  const _Empty({required this.onRetry});
   final VoidCallback onRetry;
   @override
   Widget build(BuildContext context) => Center(
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Icon(Icons.home_work_outlined, size: 64, color: AppColors.textHint),
-        const SizedBox(height: 16),
-        const Text('Nenhum imóvel encontrado', style: TextStyle(fontSize: 16, color: AppColors.textSecondary)),
-        const SizedBox(height: 8),
-        TextButton(onPressed: onRetry, child: const Text('Tentar novamente', style: TextStyle(color: AppColors.primary))),
-      ],
-    ),
+    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+      const Icon(Icons.home_work_outlined, size: 64, color: AppColors.textHint),
+      const SizedBox(height: 14),
+      const Text('Nenhum imóvel encontrado',
+        style: TextStyle(fontSize: 15, color: AppColors.textSecondary)),
+      const SizedBox(height: 10),
+      TextButton(onPressed: onRetry,
+        child: const Text('Tentar novamente', style: TextStyle(color: AppColors.primary))),
+    ]),
   );
 }
