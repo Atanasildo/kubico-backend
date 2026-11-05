@@ -1,0 +1,12 @@
+{
+  "name": "Kubico",
+  "short_name": "Kubico",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#1A1A2E",
+  "theme_color": "#1A1A2E",
+  "description": "Plataforma imobiliária angolana",
+  "orientation": "portrait-primary",
+  "prefer_related_applications": false,
+  "icons": []
+}

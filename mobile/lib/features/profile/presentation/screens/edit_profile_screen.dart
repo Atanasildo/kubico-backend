@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -24,9 +24,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late final _empresaCtrl = TextEditingController();
   late final _munCtrl     = TextEditingController();
 
-  String? _provincia;
-  File?   _newPhoto;
-  bool    _saving = false;
+  String?    _provincia;
+  XFile?     _newPhoto;
+  Uint8List? _newPhotoBytes;
+  bool       _saving = false;
 
   @override
   void initState() {
@@ -41,11 +42,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
-  @override void dispose() { _nomeCtrl.dispose(); _telCtrl.dispose(); _empresaCtrl.dispose(); _munCtrl.dispose(); super.dispose(); }
+  @override
+  void dispose() {
+    _nomeCtrl.dispose();
+    _telCtrl.dispose();
+    _empresaCtrl.dispose();
+    _munCtrl.dispose();
+    super.dispose();
+  }
 
   Future<void> _pickPhoto() async {
     final x = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
-    if (x != null) setState(() => _newPhoto = File(x.path));
+    if (x != null) {
+      final bytes = await x.readAsBytes();
+      setState(() { _newPhoto = x; _newPhotoBytes = bytes; });
+    }
   }
 
   Future<void> _save() async {
@@ -80,6 +91,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
+  ImageProvider? _avatarImage(dynamic user) {
+    if (_newPhotoBytes != null) return MemoryImage(_newPhotoBytes!);
+    if (user?.fotoPerfil != null) return CachedNetworkImageProvider(user!.fotoPerfil!);
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
@@ -88,17 +105,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          // Avatar
           Center(
             child: Stack(
               children: [
                 CircleAvatar(
                   radius: 48,
                   backgroundColor: AppColors.primary,
-                  backgroundImage: _newPhoto != null
-                      ? FileImage(_newPhoto!) as ImageProvider
-                      : (user?.fotoPerfil != null ? CachedNetworkImageProvider(user!.fotoPerfil!) : null),
-                  child: (user?.fotoPerfil == null && _newPhoto == null)
+                  backgroundImage: _avatarImage(user),
+                  child: _avatarImage(user) == null
                       ? Text(user?.nome.isNotEmpty == true ? user!.nome[0].toUpperCase() : 'K',
                           style: const TextStyle(fontSize: 32, color: Colors.white, fontWeight: FontWeight.w700))
                       : null,
@@ -114,7 +128,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
           ),
           const SizedBox(height: 28),
-
           KubicoTextField(label: 'Nome completo', controller: _nomeCtrl,
             prefixIcon: Icons.person_outline,
             validator: (v) => (v == null || v.length < 2) ? 'Obrigatório' : null),

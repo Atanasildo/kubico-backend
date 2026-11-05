@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -46,7 +46,7 @@ class _PublishScreenState extends State<PublishScreen> {
   bool _temPiscina  = false;
   bool _temQuintal  = false;
 
-  final List<File>   _localImages = [];
+  final List<XFile>  _localImages  = [];
   final List<String> _uploadedUrls = [];
   bool _uploading  = false;
   bool _submitting = false;
@@ -60,11 +60,10 @@ class _PublishScreenState extends State<PublishScreen> {
     super.dispose();
   }
 
-  // ── Imagens ───────────────────────────────────────────────────────────────
   Future<void> _pickImages() async {
     final picked = await _picker.pickMultiImage(imageQuality: 80);
     if (picked.isEmpty) return;
-    final files = picked.take(10 - _localImages.length).map((x) => File(x.path)).toList();
+    final files = picked.take(10 - _localImages.length).toList();
     setState(() => _localImages.addAll(files));
   }
 
@@ -79,7 +78,6 @@ class _PublishScreenState extends State<PublishScreen> {
     setState(() => _uploading = false);
   }
 
-  // ── Submeter ──────────────────────────────────────────────────────────────
   Future<void> _submit() async {
     if (!_form.currentState!.validate()) return;
     if (_provincia == null) {
@@ -234,7 +232,7 @@ class _PublishScreenState extends State<PublishScreen> {
   }
 }
 
-// ── Step widgets ─────────────────────────────────────────────────────────────
+// ── Step widgets ──────────────────────────────────────────────────────────────
 
 class _StepInfo extends StatelessWidget {
   const _StepInfo({
@@ -328,7 +326,7 @@ class _StepLocation extends StatelessWidget {
   ]);
 }
 
-class _StepExtras extends StatelessWidget {
+class _StepExtras extends StatefulWidget {
   const _StepExtras({
     required this.localImages, required this.onPickImages,
     required this.telCtrl, required this.waCtrl,
@@ -337,15 +335,22 @@ class _StepExtras extends StatelessWidget {
     required this.temPiscina, required this.temQuintal,
     required this.onToggle,
   });
-  final List<File> localImages;
+  final List<XFile> localImages;
   final VoidCallback onPickImages;
   final TextEditingController telCtrl, waCtrl;
   final bool temEnergia, temAgua, temGerador, mobilado, temPiscina, temQuintal;
   final void Function(String, bool) onToggle;
+  @override State<_StepExtras> createState() => _StepExtrasState();
+}
+
+class _StepExtrasState extends State<_StepExtras> {
+  final Map<String, Future<Uint8List>> _byteCache = {};
+
+  Future<Uint8List> _bytes(XFile f) =>
+      _byteCache.putIfAbsent(f.path, () => f.readAsBytes());
 
   @override
   Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    // Fotos
     _Label('Fotos (máx. 10)'),
     SizedBox(
       height: 90,
@@ -353,7 +358,7 @@ class _StepExtras extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         children: [
           GestureDetector(
-            onTap: onPickImages,
+            onTap: widget.onPickImages,
             child: Container(
               width: 80, height: 80,
               margin: const EdgeInsets.only(right: 8),
@@ -368,33 +373,42 @@ class _StepExtras extends StatelessWidget {
               ]),
             ),
           ),
-          ...localImages.map((f) => Container(
-            width: 80, height: 80,
-            margin: const EdgeInsets.only(right: 8),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              image: DecorationImage(image: FileImage(f), fit: BoxFit.cover)),
+          ...widget.localImages.map((f) => FutureBuilder<Uint8List>(
+            future: _bytes(f),
+            builder: (ctx, snap) => Container(
+              width: 80, height: 80,
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                color: AppColors.surfaceVariant,
+                image: snap.hasData
+                    ? DecorationImage(image: MemoryImage(snap.data!), fit: BoxFit.cover)
+                    : null),
+              child: snap.hasData ? null : const Center(
+                child: SizedBox(width: 20, height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2))),
+            ),
           )),
         ],
       ),
     ),
     const SizedBox(height: 14),
-    KubicoTextField(label: 'Telefone', controller: telCtrl, keyboardType: TextInputType.phone, prefixIcon: Icons.phone_outlined),
+    KubicoTextField(label: 'Telefone', controller: widget.telCtrl, keyboardType: TextInputType.phone, prefixIcon: Icons.phone_outlined),
     const SizedBox(height: 10),
-    KubicoTextField(label: 'WhatsApp', controller: waCtrl,  keyboardType: TextInputType.phone, prefixIcon: Icons.chat_outlined),
+    KubicoTextField(label: 'WhatsApp', controller: widget.waCtrl, keyboardType: TextInputType.phone, prefixIcon: Icons.chat_outlined),
     const SizedBox(height: 14),
     _Label('Comodidades'),
     ...[
-      ('Energia eléctrica', 'energia', temEnergia),
-      ('Água canalizada',   'agua',    temAgua),
-      ('Gerador',           'gerador', temGerador),
-      ('Mobilado',          'mobilado', mobilado),
-      ('Piscina',           'piscina', temPiscina),
-      ('Quintal',           'quintal', temQuintal),
+      ('Energia eléctrica', 'energia', widget.temEnergia),
+      ('Água canalizada',   'agua',    widget.temAgua),
+      ('Gerador',           'gerador', widget.temGerador),
+      ('Mobilado',          'mobilado', widget.mobilado),
+      ('Piscina',           'piscina', widget.temPiscina),
+      ('Quintal',           'quintal', widget.temQuintal),
     ].map((e) => CheckboxListTile(
       value: e.$3 as bool, activeColor: AppColors.primary,
       title: Text(e.$1 as String), contentPadding: EdgeInsets.zero,
-      onChanged: (v) => onToggle(e.$2 as String, v!),
+      onChanged: (v) => widget.onToggle(e.$2 as String, v!),
     )),
   ]);
 }
