@@ -175,16 +175,17 @@ class AuthProvider extends ChangeNotifier {
   void _setLoading(bool v) { _loading = v; notifyListeners(); }
 
   String _extractError(dynamic e) {
-    if (e is Exception) {
-      final msg = e.toString();
-      if (msg.contains('400')) return _parseDetail(msg) ?? 'Dados inválidos.';
-      if (msg.contains('401')) return 'Email ou senha incorrectos.';
-      if (msg.contains('403')) return 'Conta desactivada. Contacta o suporte.';
-      if (msg.contains('409')) return 'Este email já está registado.';
-      if (msg.contains('SocketException') || msg.contains('connection'))
-        return 'Sem ligação à internet.';
-    }
-    return 'Erro inesperado. Tenta novamente.';
+    final msg = e.toString();
+    // Show raw error in debug to help diagnose
+    if (msg.contains('400')) return _parseDetail(msg) ?? 'Dados inválidos.';
+    if (msg.contains('401')) return 'Email ou senha incorrectos.';
+    if (msg.contains('403')) return 'Conta desactivada. Contacta o suporte.';
+    if (msg.contains('409')) return 'Este email já está registado.';
+    if (msg.contains('SocketException') || msg.contains('connection') ||
+        msg.contains('ERR_FAILED') || msg.contains('XMLHttp'))
+      return 'Sem ligação ao servidor.';
+    // Surface the real error so we can diagnose
+    return 'Erro: $msg';
   }
 
   String? _parseDetail(String msg) {
