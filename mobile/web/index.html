@@ -14,8 +14,8 @@
   <title>Kubico</title>
   <link rel="manifest" href="manifest.json">
   <script>
-    // flutter_secure_storage web shim (uses localStorage)
-    // Required before Flutter boots
+    // Force HTML renderer — avoids canvaskit.wasm download from gstatic
+    window.flutterConfiguration = { renderer: "html" };
   </script>
 </head>
 <body>
