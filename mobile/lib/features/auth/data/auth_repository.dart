@@ -44,10 +44,16 @@ class AuthRepository {
     return UserModel.fromJson(res.data);
   }
 
-  /// Fetch /me with an explicit token — bypasses the storage read race on web.
+  /// Fetch /me with an explicit token — creates a fresh Dio to bypass interceptors.
   Future<UserModel> fetchMeWithToken(String token) async {
-    final res = await _dio.get(ApiEndpoints.me,
-      options: Options(headers: {'Authorization': 'Bearer $token'}));
+    final baseUrl = _dio.options.baseUrl;
+    final dio = Dio(BaseOptions(
+      baseUrl: baseUrl,
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 15),
+      headers: {'Authorization': 'Bearer $token'},
+    ));
+    final res = await dio.get(ApiEndpoints.me);
     return UserModel.fromJson(res.data);
   }
 
