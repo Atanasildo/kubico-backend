@@ -161,6 +161,12 @@ def publish_property(
 
     imovel = create_property(db, prop_in, autor_id=current_user.id)
 
+    # Admin e agentes verificados têm aprovação automática
+    if current_user.role in (UserRole.ADMIN, UserRole.AGENTE) or agente:
+        imovel.aprovado = True
+        db.commit()
+        db.refresh(imovel)
+
     # Visibilidade no feed Girassol para utilizadores free
     if not agente:
         count_feed = (

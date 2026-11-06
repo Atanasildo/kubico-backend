@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import 'property_model.dart';
@@ -90,8 +91,13 @@ class PropertyRepository {
 
   // ── Upload de imagem ─────────────────────────────────────────────────────
   Future<String> uploadImage(String filePath) async {
+    // XFile.path on web is a blob URL — must use readAsBytes() instead of fromFile()
+    final xfile = XFile(filePath);
+    final bytes = await xfile.readAsBytes();
+    final fileName = filePath.split('/').last.split('\\').last;
     final formData = FormData.fromMap({
-      'file': await MultipartFile.fromFile(filePath,
+      'file': MultipartFile.fromBytes(bytes,
+        filename: fileName.isNotEmpty ? fileName : 'image.jpg',
         contentType: DioMediaType('image', 'jpeg')),
     });
     final res = await _dio.post(ApiEndpoints.uploadImage,

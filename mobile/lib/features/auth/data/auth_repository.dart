@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../../../core/storage/token_storage.dart';
@@ -111,8 +112,10 @@ class AuthRepository {
   }
 
   Future<String> uploadProfilePhoto(String filePath) async {
+    final bytes = await XFile(filePath).readAsBytes();
     final formData = FormData.fromMap({
-      'file': await MultipartFile.fromFile(filePath),
+      'file': MultipartFile.fromBytes(bytes, filename: 'profile.jpg',
+        contentType: DioMediaType('image', 'jpeg')),
     });
     final res = await _dio.post(ApiEndpoints.uploadProfile,
       data: formData,
