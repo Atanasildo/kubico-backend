@@ -25,7 +25,8 @@ class UserModel {
     this.municipio,
   });
 
-  bool get isAgente => role == 'agente';
+  bool get isAgente => role == 'agente' || role == 'admin';
+  bool get isAdmin  => role == 'admin';
 
   factory UserModel.fromJson(Map<String, dynamic> json) => UserModel(
     id:                 json['id'],

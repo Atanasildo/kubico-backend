@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/card_action.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -113,7 +114,17 @@ class _DashboardScreenState extends State<DashboardScreen>
               _Tile(icon: Icons.lock_outline, label: 'Alterar senha',
                 onTap: () => Navigator.push(context,
                   MaterialPageRoute(builder: (_) => const ChangePasswordScreen()))),
-              if (user?.isAgente == true)
+              if (user?.isAdmin == true)
+                _Tile(
+                  icon: Icons.admin_panel_settings_outlined,
+                  label: 'Painel admin',
+                  color: AppColors.primary,
+                  onTap: () async {
+                    final uri = Uri.parse('https://frontend-9l8i-ten.vercel.app/admin');
+                    // url_launcher
+                    if (await canLaunchUrl(uri)) launchUrl(uri, mode: LaunchMode.externalApplication);
+                  }),
+              if (user?.isAgente == true && user?.isAdmin == false)
                 _Tile(icon: Icons.business_outlined, label: 'Plano agente', onTap: () {}),
               _Tile(icon: Icons.payment_outlined, label: 'Histórico de pagamentos', onTap: () {}),
               const Divider(height: 32),
@@ -164,7 +175,14 @@ class _ProfileHeader extends StatelessWidget {
           Text(user?.nome ?? '', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
           Text(user?.email ?? '', style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
           const SizedBox(height: 4),
-          if (user?.isAgente == true)
+          if (user?.isAdmin == true)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.15), borderRadius: BorderRadius.circular(4)),
+              child: const Text('Admin',
+                style: TextStyle(fontSize: 11, color: Colors.orange, fontWeight: FontWeight.w600)))
+          else if (user?.isAgente == true)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
